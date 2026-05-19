@@ -51,7 +51,7 @@ export function MainLayout({ children }: { children?: ReactNode }) {
         </div>
 
         <Space size={8}>
-          <Button variant="text" shape="square" size="small"
+          <Button variant="text" shape="square" size="small" title={theme==="dark"?"切换浅色":"切换深色"}
             icon={theme === "dark" ? <MoonIcon /> : <SunnyIcon />}
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           />
