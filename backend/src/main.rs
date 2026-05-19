@@ -37,7 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 初始化内存数据库引擎
     let db = Arc::new(parking_lot::RwLock::new(
-        huntiandb::server::database::Database::new()
+        huntiandb::server::database::Database::new(config.data_dir.clone())
     ));
     tracing::info!("数据库引擎已初始化");
 

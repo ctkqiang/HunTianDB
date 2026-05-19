@@ -107,7 +107,7 @@ async fn query_handler(
         match parse_insert(&sql) {
             Ok((tbl_name, values)) => {
                 let tbl = db.get_table_mut(&tbl_name).ok_or_else(|| (StatusCode::BAD_REQUEST, format!("表 '{}' 不存在", tbl_name)))?;
-                match tbl.insert(values) {
+                match db.log_insert(&tbl_name, values) {
                     Ok(()) => Ok(Json(QueryResponse { columns: vec!["result".into()], rows: vec![serde_json::json!({"result": "INSERT 1"})], elapsed_ms: elapsed() })),
                     Err(e) => Err((StatusCode::BAD_REQUEST, e)),
                 }
