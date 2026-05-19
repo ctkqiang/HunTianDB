@@ -26,7 +26,7 @@ export function QueryBuilder() {
   const [suggestion, setSuggestion] = useState<string | null>(null);
 
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") runQuery(); };
+    const h = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") executeQuery(); };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [sql]);
@@ -39,13 +39,13 @@ export function QueryBuilder() {
     });
   }, []);
 
-  const runQuery = useCallback(async () => {
-    const trimmed = sql.trim();
+  const executeQuery = useCallback(async (querySql?: string) => {
+    const trimmed = (querySql ?? sql).trim();
     if (!trimmed) return;
     setLoading(true); setError(null); setSuggestion(null); setResult(null);
+    if (querySql) setSql(querySql);
     try {
       const res = await queryEvents({ sql: trimmed });
-      // 检查是否为表名错误建议
       if (res.columns.includes("suggestion") && res.rows.length === 1) {
         const row = res.rows[0] as any;
         setError(row.error);
@@ -113,14 +113,14 @@ export function QueryBuilder() {
               <span>
                 {". "}Did you mean{" "}
                 <span
-                  onClick={() => { setSql(suggestion); setError(null); setSuggestion(null); runQuery(); }}
+                  onClick={() => { setError(null); setSuggestion(null); executeQuery(suggestion); }}
                   style={{ cursor: "pointer", color: "var(--td-brand-color)", textDecoration: "underline", fontWeight: 600, fontFamily: "monospace" }}
                 >
                   events
                 </span>
                 {"? "}
                 <Tag size="small" theme="primary" style={{ cursor: "pointer", marginLeft: 6 }}
-                  onClick={() => { setSql(suggestion); setError(null); setSuggestion(null); }}>
+                  onClick={() => { setError(null); setSuggestion(null); executeQuery(suggestion); }}>
                   Run: {suggestion}
                 </Tag>
               </span>
@@ -130,7 +130,7 @@ export function QueryBuilder() {
 
         <Divider />
         <Space>
-          <Button theme="primary" icon={<PlayCircleIcon />} loading={loading} onClick={runQuery}>Ctrl+Enter 执行</Button>
+          <Button theme="primary" icon={<PlayCircleIcon />} loading={loading} onClick={executeQuery}>Ctrl+Enter 执行</Button>
           <Button variant="outline" icon={<ClearIcon />} onClick={() => { setSql(""); setResult(null); setError(null); }}>清除</Button>
           <Button variant="text" icon={fullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />} onClick={() => setFullscreen(!fullscreen)} />
           <Popconfirm content="清除所有查询历史?" onConfirm={() => { setHistory([]); localStorage.removeItem("hunt_sql_history"); }}>
@@ -140,10 +140,43 @@ export function QueryBuilder() {
         </Space>
       </Card>
 
-      {result && (
-        <Card bordered title={`查询结果 · ${result.columns.length} 列`}>
-          <Table data={result.rows} columns={columns} rowKey={(_: any, i: number) => String(i)} maxHeight={500} bordered stripe hover size="small" empty="查询结果为空" pagination={{ defaultPageSize: 50, pageSizeOptions: [20, 50, 100, 200], showJumper: true }} />
+      {result && result.columns.includes("table_name") ? (
+        <Card bordered title="表列表">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
+            {result.rows.map((row: any, i: number) => {
+              const tbl = row.table_name;
+              const cols = row.columns ?? "?";
+              const rows = row.rows ?? "?";
+              const query = `SELECT * FROM ${tbl} LIMIT 30`;
+              return (
+                <div key={i}
+                  onClick={() => executeQuery(query)}
+                  style={{
+                    cursor: "pointer", padding: "16px", borderRadius: 10,
+                    background: "var(--td-bg-color-component)",
+                    border: "1px solid var(--td-component-stroke)",
+                    transition: "all 0.15s",
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--td-brand-color)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 8px rgba(124,58,237,0.15)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--td-component-stroke)"; (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
+                >
+                  <div style={{ fontSize: 15, fontWeight: 600, color: "var(--td-brand-color)", fontFamily: "monospace", marginBottom: 8 }}>{tbl}</div>
+                  <div style={{ display: "flex", gap: 16, fontSize: 12, color: "var(--td-text-color-placeholder)" }}>
+                    <span>{cols} 列</span>
+                    <span>{rows} 行</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--td-text-color-placeholder)", marginTop: 6, fontFamily: "monospace", opacity: 0.7 }}>{query}</div>
+                </div>
+              );
+            })}
+          </div>
         </Card>
+      ) : (
+        result && (
+          <Card bordered title={`查询结果 · ${result.columns.length} 列`}>
+            <Table data={result.rows} columns={columns} rowKey={(_: any, i: number) => String(i)} maxHeight={500} bordered stripe hover size="small" empty="查询结果为空" pagination={{ defaultPageSize: 50, pageSizeOptions: [20, 50, 100, 200], showJumper: true }} />
+          </Card>
+        )
       )}
     </div>
   );
