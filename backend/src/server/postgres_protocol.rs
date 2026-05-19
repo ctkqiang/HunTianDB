@@ -4,7 +4,7 @@
 //! 使 HunTianDB 可作为 psql/pgx 等标准客户端的直连替代。
 
 use bytes::{Buf, BytesMut};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncWriteExt, AsyncWrite};
 use tokio::net::TcpStream;
 use crate::error::{HunTianError, HunTianResult};
 
@@ -70,46 +70,48 @@ impl PostgresProtocol {
         loop {
             match self.read_message().await {
                 Ok(msg_type) => {
+                    tracing::info!("PG消息: {:?}", msg_type as char);
                     match msg_type {
                         b'Q' => {
-                            // 简单查询
                             let query = self.read_simple_query().await?;
                             self.handle_query(&query.query_string).await?;
                         }
-                        b'X' => {
-                            // 客户端关闭连接
-                            break;
+                        b'X' => break, // Terminate
+                        // Extended Query Protocol — 跳过并响应
+                        b'P' | b'B' | b'D' | b'E' | b'S' | b'H' | b'C' | b'f' | b'F' => {
+                            self.skip_message().await?;
+                            self.send_ready_for_query().await?;
                         }
-                        _ => {
-                            // 未知消息类型，忽略
-                        }
+                        _ => { self.skip_message().await?; }
                     }
                 }
-                Err(_) => break, // 连接关闭或错误
+                Err(e) => { tracing::warn!("消息读取错误: {}", e); break; }
             }
         }
 
         Ok(())
     }
 
-    /// SSL 协商 — 如果客户端发送SSL请求，回复 'N' 拒绝
+    /// SSL 协商 — PG客户端先发8字节SSL请求(len=8)，回复'N'拒绝
     async fn handle_ssl_request(&mut self) -> HunTianResult<()> {
-        // 读取8字节 (4B 长度 + 4B SSL code)
-        self.read_exact(8).await?;
+        tracing::info!("SSL握手开始...");
+        self.read_exact(4).await?;
+        tracing::info!("SSL读到4字节");
         let len = self.buffer.get_i32();
-        let code = self.buffer.get_i32();
 
-        // SSL request: length=8, code=80877103
-        if len == 8 && code == 80877103 {
+        if len == 8 {
+            // SSL request: 消费剩余4字节payload，回复'N'
+            self.read_exact(4).await?;
+            let _code = self.buffer.get_i32();
+            self.stream.set_nodelay(true)?;
             self.stream.write_all(&[b'N']).await?;
-            tracing::debug!("SSL 请求已拒绝");
+            self.stream.flush().await?;
+            tracing::info!("SSL N");
             return Ok(());
         }
 
-        // 不是 SSL 请求 — 把8字节放回 buffer，让 read_startup_message 处理
-        let mut saved = Vec::with_capacity(8);
-        saved.extend_from_slice(&len.to_be_bytes());
-        saved.extend_from_slice(&code.to_be_bytes());
+        // StartupMessage: 长度>8，把4字节放回buffer
+        let saved = len.to_be_bytes().to_vec();
         self.buffer = BytesMut::with_capacity(4096);
         self.buffer.extend_from_slice(&saved);
         Ok(())
@@ -162,23 +164,34 @@ impl PostgresProtocol {
 
     /// 处理简单查询 — 返回基础 PG 兼容响应
     async fn handle_query(&mut self, sql: &str) -> HunTianResult<()> {
+        tracing::info!("PG查询: {}", sql);
         let sql_upper = sql.trim().to_uppercase();
 
-        if sql_upper.starts_with("SELECT") {
-            // 发送空的 SELECT 结果 (RowDescription + CommandComplete)
-            // T = RowDescription: 发送0列
-            let t_msg = [b'T', 0, 0, 0, 6, 0, 0]; // length=6, 0 columns
+        // 静默处理PG客户端发现查询
+        let silent = sql_upper.starts_with("SET ")
+            || sql_upper.starts_with("SHOW ")
+            || sql_upper.starts_with("RESET ")
+            || sql_upper.starts_with("BEGIN")
+            || sql_upper.starts_with("START ")
+            || sql_upper.starts_with("COMMIT")
+            || sql_upper.starts_with("ROLLBACK")
+            || sql_upper.starts_with("DISCARD ")
+            || sql_upper.starts_with("DEALLOCATE ")
+            || sql_upper.starts_with("CLOSE ")
+            || sql_upper.starts_with("LISTEN ")
+            || sql_upper.starts_with("UNLISTEN ")
+            || sql_upper.starts_with("NOTIFY ");
+
+        if silent {
+            self.send_command_complete("OK", 0).await?;
+        } else if sql_upper.starts_with("SELECT") || sql_upper.starts_with("WITH ") || sql_upper.starts_with("VALUES ") || sql_upper.starts_with("TABLE ") || sql_upper.starts_with("EXPLAIN ") || sql_upper.starts_with("DESCRIBE ") {
+            let t_msg = [b'T', 0, 0, 0, 6, 0, 0]; // RowDescription: 0 columns
             self.stream.write_all(&t_msg).await?;
             self.send_command_complete("SELECT", 0).await?;
         } else if sql_upper.starts_with("INSERT") {
             self.send_command_complete("INSERT", 1).await?;
-        } else if sql_upper.starts_with("BEGIN") || sql_upper.starts_with("START") {
-            self.send_command_complete("BEGIN", 0).await?;
-        } else if sql_upper.starts_with("COMMIT") {
-            self.send_command_complete("COMMIT", 0).await?;
-        } else if sql_upper.starts_with("SET ") || sql_upper.starts_with("SHOW ") {
-            // DBeaver 发送 SET application_name, SHOW 等 — 静默成功
-            self.send_command_complete("SET", 0).await?;
+        } else if sql_upper.starts_with("CREATE ") || sql_upper.starts_with("DROP ") || sql_upper.starts_with("ALTER ") {
+            self.send_command_complete("OK", 0).await?;
         } else {
             self.send_error(&format!("不支持: {}", sql)).await?;
         }
@@ -225,6 +238,18 @@ impl PostgresProtocol {
         Ok(())
     }
 
+    /// 跳过一条PG消息（读取长度并消费payload）
+    async fn skip_message(&mut self) -> HunTianResult<()> {
+        self.read_exact(4).await?;
+        let len = self.buffer.get_i32();
+        if len > 4 {
+            let remaining = (len - 4) as usize;
+            self.read_exact(remaining).await?;
+            self.buffer.clear();
+        }
+        Ok(())
+    }
+
     async fn read_message(&mut self) -> HunTianResult<u8> {
         self.read_exact(1).await?;
         Ok(self.buffer.get_u8())
@@ -232,21 +257,20 @@ impl PostgresProtocol {
 
     async fn read_simple_query(&mut self) -> HunTianResult<QueryMessage> {
         self.read_exact(4).await?;
-        let _len = self.buffer.get_i32();
+        let len = self.buffer.get_i32();
+        let payload = (len - 4) as usize;
+        self.read_exact(payload).await?;
         let query = self.read_null_terminated_string();
+        self.buffer.clear(); // 消费剩余字节
         Ok(QueryMessage { query_string: query })
     }
 
     async fn read_exact(&mut self, n: usize) -> HunTianResult<()> {
-        self.buffer.reserve(n);
-        let mut read = 0;
-        while read < n {
-            let n_read = self.stream.read_buf(&mut self.buffer).await?;
-            if n_read == 0 {
-                return Err(HunTianError::Protocol("连接已关闭".into()));
-            }
-            read += n_read;
-        }
+        let mut buf = vec![0u8; n];
+        self.stream.read_exact(&mut buf).await.map_err(|e| {
+            HunTianError::Protocol(format!("读取失败: {}", e))
+        })?;
+        self.buffer.extend_from_slice(&buf);
         Ok(())
     }
 
