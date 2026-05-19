@@ -11,6 +11,7 @@ export function MainLayout({ children }: { children?: ReactNode }) {
   const { user, signOut } = useAuth();
   const { t, lang, setLang } = useT();
   const { theme, sidebarCollapsed, toggleSidebar, setTheme } = useUIStore();
+
   const nav = (to: string) => { window.history.pushState({}, "", to); window.dispatchEvent(new PopStateEvent("popstate")); };
 
   const items = [
@@ -21,12 +22,11 @@ export function MainLayout({ children }: { children?: ReactNode }) {
   ];
 
   return (
-    <Layout style={{ height: "100vh" }}>
-      <Header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", height: 52, borderBottom: "1px solid var(--td-component-stroke)", background: "var(--td-bg-color-container)", flexShrink: 0 }}>
-        <Space size={12}>
+    <Layout style={{ height: "100vh", background: "var(--td-bg-color-page)" }}>
+      <Header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", height: 48, borderBottom: "1px solid var(--td-component-stroke)", background: "var(--td-bg-color-container)", flexShrink: 0 }}>
+        <Space size={10}>
           <Button variant="text" shape="square" size="small" icon={sidebarCollapsed ? <MenuUnfoldIcon /> : <MenuFoldIcon />} onClick={toggleSidebar} />
-          <div style={{ width: 26, height: 26, borderRadius: 7, background: "var(--td-brand-color)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 13 }}>混</div>
-          <span style={{ fontWeight: 700, fontSize: 15 }}>{t("app_name")}</span>
+          <span style={{ fontWeight: 700, fontSize: 14, color: "var(--td-text-color-primary)" }}>{t("app_name")}</span>
         </Space>
         <Space size={8}>
           <Button variant="text" shape="square" size="small" icon={theme === "dark" ? <SunnyIcon /> : <MoonIcon />} onClick={() => setTheme(theme === "dark" ? "light" : "dark")} />
@@ -42,7 +42,7 @@ export function MainLayout({ children }: { children?: ReactNode }) {
             {items.map((i) => <Menu.MenuItem key={i.value} value={i.value} icon={i.icon}>{i.content}</Menu.MenuItem>)}
           </Menu>
         </Aside>
-        <Content style={{ padding: 20, background: "var(--td-bg-color-page)", overflow: "auto", flex: 1 }}>{children}</Content>
+        <Content style={{ padding: 20, overflow: "auto", flex: 1 }}>{children}</Content>
       </Layout>
     </Layout>
   );

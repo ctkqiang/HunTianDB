@@ -2,6 +2,13 @@ import { create } from "zustand";
 
 export type ThemeMode = "light" | "dark" | "auto";
 
+function resolveTheme(m: ThemeMode): "light" | "dark" {
+  if (m === "auto") return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return m;
+}
+
+const initial: ThemeMode = (localStorage.getItem("app_theme") as ThemeMode) || "dark";
+
 interface UIState {
   theme: ThemeMode;
   sidebarCollapsed: boolean;
@@ -9,29 +16,15 @@ interface UIState {
   toggleSidebar: () => void;
 }
 
-function getInitialTheme(): ThemeMode {
-  return (localStorage.getItem("huntiandb_theme") as ThemeMode) || "auto";
-}
-
-function resolveTheme(mode: ThemeMode): "light" | "dark" {
-  if (mode === "auto") {
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  }
-  return mode;
-}
-
 export const useUIStore = create<UIState>((set) => ({
-  theme: getInitialTheme(),
+  theme: initial,
   sidebarCollapsed: false,
   setTheme: (t) => {
-    localStorage.setItem("huntiandb_theme", t);
-    const resolved = resolveTheme(t);
-    document.documentElement.setAttribute("theme-mode", resolved);
+    localStorage.setItem("app_theme", t);
+    document.documentElement.setAttribute("theme-mode", resolveTheme(t));
     set({ theme: t });
   },
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
 }));
 
-// 初始化主题
-const saved = getInitialTheme();
-document.documentElement.setAttribute("theme-mode", resolveTheme(saved));
+document.documentElement.setAttribute("theme-mode", resolveTheme(initial));
