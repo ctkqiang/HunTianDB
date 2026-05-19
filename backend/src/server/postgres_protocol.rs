@@ -315,7 +315,11 @@ impl PostgresProtocol {
 
     /// 发送 CommandComplete 消息
     async fn send_command_complete(&mut self, tag: &str, rows: u32) -> HunTianResult<()> {
-        let tag_str = format!("{} {}", tag, rows);
+        let tag_str = if tag == "INSERT" {
+            format!("INSERT 0 {}", rows)
+        } else {
+            format!("{} {}", tag, rows)
+        };
         let len = 4 + tag_str.len() + 1;
         let mut msg = Vec::with_capacity(1 + len);
         msg.push(b'C');
