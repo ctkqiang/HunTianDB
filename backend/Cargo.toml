@@ -1,0 +1,92 @@
+[package]
+name = "huntiandb"
+version = "0.1.0"
+edition = "2021"
+description = "混天 — 时序安全数据库，面向安全审计与金融数据的不可变列式存储引擎"
+
+[dependencies]
+# 异步运行时
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+
+# 网络与TLS
+rustls = { version = "0.23", features = ["tls12"] }
+rustls-pemfile = "2"
+tokio-rustls = "0.26"
+x509-parser = "0.16"
+
+# PostgreSQL 线协议
+byteorder = "1.5"
+bytes = "1"
+md-5 = "0.10"
+sha2 = "0.10"
+hmac = "0.12"
+
+# 安全加密
+aes-gcm = "0.10"
+hkdf = "0.12"
+ring = "0.17"
+p521 = { version = "0.13", features = ["ecdsa"] }   # P-521 ECDHE
+rand = "0.8"
+base64 = "0.22"
+
+# JWT认证
+jsonwebtoken = "9"
+
+# 列式存储
+arrow = "53"
+parquet = "53"
+datafusion = "41"
+
+# 序列化
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+bincode = "1"
+
+# 并发数据结构
+crossbeam = "0.8"
+parking_lot = "0.12"
+dashmap = "6"
+
+# Bloom过滤器
+bloomfilter = "1"
+
+# 压缩
+snap = "1"
+lz4 = "1"
+zstd = "0.13"
+
+# SQL解析
+sqlparser = "0.51"
+
+# 日志与监控
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+prometheus = "0.13"
+
+# 工具
+chrono = "0.4"
+uuid = { version = "1", features = ["v4", "v7"] }
+thiserror = "2"
+anyhow = "1"
+once_cell = "1"
+itertools = "0.13"
+
+# HTTP REST (Portal后端)
+axum = "0.8"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors"] }
+hyper = "1"
+
+[dev-dependencies]
+criterion = "0.5"
+tempfile = "3"
+proptest = "1"
+
+[[bench]]
+name = "benchmark"
+harness = false
+
+[[test]]
+name = "integration_test"
+path = "tests/integration_test.rs"

@@ -1,0 +1,16 @@
+/target
+**/*.rs.bk
+Cargo.lock
+.env
+*.pem
+*.key
+*.crt
+*.csr
+/node_modules
+/dist
+/.vite
+*.log
+/data
+.DS_Store
+.idea/
+.vscode/
