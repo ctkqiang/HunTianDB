@@ -27,7 +27,7 @@ export function MainLayout({ children }: { children?: ReactNode }) {
     <Layout style={{ height: "100vh" }}>
       <Header style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 24px", height: 48,
+        padding: "5px 24px 0", height: 48,
         borderBottom: "1px solid var(--td-component-stroke)",
         background: "var(--td-bg-color-container)", flexShrink: 0,
       }}>
