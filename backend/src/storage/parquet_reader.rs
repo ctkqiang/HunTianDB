@@ -4,15 +4,11 @@
 //! 支持谓词下推与向量化读取。
 
 use std::path::PathBuf;
-use std::sync::Arc;
 use arrow::record_batch::RecordBatch;
-use parquet::arrow::ParquetRecordBatchReader;
+use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use crate::error::HunTianResult;
 
 /// Parquet 读取器
-///
-/// 负责从分区文件中读取事件数据，
-/// 支持时间范围过滤与 Bloom 过滤器加速。
 pub struct ParquetReader {
     data_dir: PathBuf,
 }
@@ -26,12 +22,16 @@ impl ParquetReader {
     pub fn read_partition(&self, file_path: &str) -> HunTianResult<Vec<RecordBatch>> {
         let full_path = self.data_dir.join(file_path);
         let file = std::fs::File::open(&full_path)?;
-        let reader = ParquetRecordBatchReader::try_new(file, 8192)?;
+        let builder = ParquetRecordBatchReaderBuilder::try_new(file)
+            .map_err(|e| crate::error::HunTianError::Storage(format!("Parquet读取: {}", e)))?;
+
+        let reader = builder.build()
+            .map_err(|e| crate::error::HunTianError::Storage(format!("Parquet构建: {}", e)))?;
 
         let mut batches = Vec::new();
         for batch in reader {
             batches.push(batch.map_err(|e| {
-                crate::error::HunTianError::Storage(format!("Parquet 读取错误: {}", e))
+                crate::error::HunTianError::Storage(format!("Parquet行读取: {}", e))
             })?);
         }
         Ok(batches)

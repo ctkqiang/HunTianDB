@@ -172,5 +172,3 @@ impl WriteAheadLog {
     }
 }
 
-use std::io::Error;
-use getrandom;

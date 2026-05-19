@@ -5,60 +5,42 @@
 
 use sqlparser::dialect::GenericDialect;
 use sqlparser::parser::Parser;
+use sqlparser::ast::{Statement, SetExpr};
 use crate::error::{HunTianError, HunTianResult};
 
-/// 支持的 SQL 语句类型
 #[derive(Debug, Clone)]
 pub enum ParsedStatement {
-    /// INSERT INTO events (...) VALUES (...)
-    Insert {
-        table: String,
-        columns: Vec<String>,
-        values: Vec<Vec<String>>,
-    },
-    /// SELECT ... FROM events WHERE ...
-    Select {
-        columns: Vec<String>,
-        table: String,
-        where_clause: Option<String>,
-        limit: Option<u64>,
-    },
-    /// BEGIN — 事务开始
+    Insert { table: String, columns: Vec<String>, values: Vec<Vec<String>> },
+    Select { columns: Vec<String>, table: String, where_clause: Option<String>, limit: Option<u64> },
     Begin,
-    /// COMMIT — 事务提交
     Commit,
-    /// ROLLBACK — 事务回滚
     Rollback,
 }
 
-/// SQL 解析器
 pub struct SqlParser {
     dialect: GenericDialect,
 }
 
 impl SqlParser {
     pub fn new() -> Self {
-        Self {
-            dialect: GenericDialect {},
-        }
+        Self { dialect: GenericDialect {} }
     }
 
-    /// 解析 SQL 字符串
     pub fn parse(&self, sql: &str) -> HunTianResult<Vec<ParsedStatement>> {
         let ast = Parser::parse_sql(&self.dialect, sql)
-            .map_err(|e| HunTianError::Query(format!("SQL 解析错误: {}", e)))?;
+            .map_err(|e| HunTianError::Query(format!("SQL解析: {}", e)))?;
 
         let mut statements = Vec::new();
         for stmt in ast {
             match stmt {
-                sqlparser::ast::Statement::Insert { table_name, columns, source, .. } => {
+                Statement::Insert(insert) => {
                     statements.push(ParsedStatement::Insert {
-                        table: table_name.to_string(),
-                        columns: columns.iter().map(|c| c.to_string()).collect(),
-                        values: vec![], // 简化处理
+                        table: insert.table_name.to_string(),
+                        columns: insert.columns.iter().map(|c| c.to_string()).collect(),
+                        values: vec![],
                     });
                 }
-                sqlparser::ast::Statement::Query(query) => {
+                Statement::Query(_) => {
                     statements.push(ParsedStatement::Select {
                         columns: vec![],
                         table: "events".into(),
@@ -66,10 +48,18 @@ impl SqlParser {
                         limit: None,
                     });
                 }
+                Statement::StartTransaction { .. } => {
+                    statements.push(ParsedStatement::Begin);
+                }
+                Statement::Commit { .. } => {
+                    statements.push(ParsedStatement::Commit);
+                }
+                Statement::Rollback { .. } => {
+                    statements.push(ParsedStatement::Rollback);
+                }
                 _ => {}
             }
         }
-
         Ok(statements)
     }
 }

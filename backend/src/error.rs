@@ -62,6 +62,20 @@ impl From<std::io::Error> for HunTianError {
     }
 }
 
+// 从Parquet错误转换
+impl From<parquet::errors::ParquetError> for HunTianError {
+    fn from(e: parquet::errors::ParquetError) -> Self {
+        HunTianError::Storage(format!("Parquet: {}", e))
+    }
+}
+
+// 从Arrow错误转换
+impl From<arrow::error::ArrowError> for HunTianError {
+    fn from(e: arrow::error::ArrowError) -> Self {
+        HunTianError::Storage(format!("Arrow: {}", e))
+    }
+}
+
 // 从JSON序列化错误转换
 impl From<serde_json::Error> for HunTianError {
     fn from(e: serde_json::Error) -> Self {
