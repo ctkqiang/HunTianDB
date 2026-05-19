@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { Layout, Menu, Dropdown, Button, Space, Avatar, Radio } from "tdesign-react";
-import { DashboardIcon, ServerIcon, SearchIcon, SettingIcon, LogoutIcon, UserIcon, MenuFoldIcon, MenuUnfoldIcon, SunnyIcon, MoonIcon } from "tdesign-icons-react";
+import { DashboardIcon, ServerIcon, SearchIcon, SettingIcon, LogoutIcon, UserIcon, MenuFoldIcon, MenuUnfoldIcon, SunnyIcon, MoonIcon, TranslateIcon } from "tdesign-icons-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useT } from "@/i18n/useT";
 import { useUIStore } from "@/store/uiStore";
@@ -34,8 +34,8 @@ export function MainLayout({ children }: { children?: ReactNode }) {
 
         <Space size={4}>
           <Dropdown options={[
-            {content:theme==="dark"?"浅色模式":"深色模式",value:"theme",prefixIcon:theme==="dark"?<SunnyIcon/>:<MoonIcon/>},
-            {content:lang==="zh"?"Switch to English":"切换到中文",value:"lang",prefixIcon:lang==="zh"?<MoonIcon/>:<SunnyIcon/>},
+            {content:theme==="dark"?"浅色模式":"深色模式",value:"theme",prefixIcon:theme==="dark"?<MoonIcon/>:<SunnyIcon/>},
+            {content:lang==="zh"?"Switch to English":"切换到中文",value:"lang",prefixIcon:<TranslateIcon/>},
             {content:"—",value:"divider",divider:true},
             {content:t("logout"),value:"logout",prefixIcon:<LogoutIcon/>},
           ]} onClick={({value})=>{
