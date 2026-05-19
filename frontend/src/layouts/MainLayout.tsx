@@ -101,7 +101,7 @@ export function MainLayout({ children }: { children?: ReactNode }) {
         </Aside>
 
         <Content style={{
-          padding: 24, overflow: "auto", flex: 1,
+          padding: "32px 24px 24px", overflow: "auto", flex: 1,
           background: "var(--td-bg-color-page)",
         }}>
           {children}
