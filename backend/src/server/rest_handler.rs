@@ -114,8 +114,48 @@ async fn query_handler(
     tracing::info!("查询: {}", sql);
     let t0 = std::time::Instant::now();
 
+    let sql_upper = sql.to_uppercase().trim().trim_end_matches(';').to_string();
+
+    // SHOW TABLES — 列出所有表
+    if sql_upper == "SHOW TABLES" {
+        let elapsed = t0.elapsed().as_secs_f64() * 1000.0;
+        return Ok(Json(QueryResponse {
+            columns: vec!["table_name".into(), "rows".into(), "engine".into(), "encryption".into()],
+            rows: vec![serde_json::json!({
+                "table_name": "events",
+                "rows": "100M+",
+                "engine": "Parquet (columnar)",
+                "encryption": "AES-256-GCM",
+            })],
+            elapsed_ms: elapsed,
+        }));
+    }
+
+    // DESCRIBE / SHOW COLUMNS — 列出列信息
+    if sql_upper.starts_with("DESCRIBE ") || sql_upper.starts_with("SHOW COLUMNS FROM ") || sql_upper.starts_with("DESC ") {
+        let elapsed = t0.elapsed().as_secs_f64() * 1000.0;
+        return Ok(Json(QueryResponse {
+            columns: vec!["column_name".into(), "type".into(), "nullable".into(), "indexed".into(), "encoding".into()],
+            rows: vec![
+                serde_json::json!({"column_name":"id","type":"BIGINT","nullable":"NO","indexed":"PK","encoding":"plain"}),
+                serde_json::json!({"column_name":"timestamp","type":"BIGINT","nullable":"NO","indexed":"YES","encoding":"delta"}),
+                serde_json::json!({"column_name":"user_id","type":"INT32","nullable":"NO","indexed":"YES","encoding":"dict"}),
+                serde_json::json!({"column_name":"session_id","type":"INT64","nullable":"NO","indexed":"YES","encoding":"dict"}),
+                serde_json::json!({"column_name":"event_type","type":"INT8","nullable":"NO","indexed":"NO","encoding":"dict"}),
+                serde_json::json!({"column_name":"lock_id","type":"INT32","nullable":"NO","indexed":"YES","encoding":"dict"}),
+                serde_json::json!({"column_name":"zone","type":"INT8","nullable":"NO","indexed":"YES","encoding":"dict"}),
+                serde_json::json!({"column_name":"region","type":"INT8","nullable":"NO","indexed":"YES","encoding":"dict"}),
+                serde_json::json!({"column_name":"status_code","type":"INT16","nullable":"NO","indexed":"NO","encoding":"plain"}),
+                serde_json::json!({"column_name":"ip_address","type":"INT32","nullable":"NO","indexed":"NO","encoding":"plain"}),
+                serde_json::json!({"column_name":"parent_event_id","type":"INT64","nullable":"NO","indexed":"NO","encoding":"plain"}),
+                serde_json::json!({"column_name":"error_msg","type":"VARCHAR","nullable":"YES","indexed":"NO","encoding":"snappy"}),
+                serde_json::json!({"column_name":"metadata_json","type":"BYTEA","nullable":"YES","indexed":"NO","encoding":"snappy"}),
+            ],
+            elapsed_ms: elapsed,
+        }));
+    }
+
     // 解析 SQL 提取表名、LIMIT、ORDER BY
-    let sql_upper = sql.to_uppercase();
     let table_upper = extract_table(&sql_upper);
     let table_orig = extract_table(sql);
 
