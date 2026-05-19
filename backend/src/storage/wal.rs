@@ -35,6 +35,7 @@ pub struct WriteAheadLog {
     /// 当前 WAL 文件路径
     current_path: PathBuf,
     /// 数据目录
+    #[allow(dead_code)]
     data_dir: PathBuf,
     /// 全局序列号计数器
     sequence: Arc<std::sync::atomic::AtomicU64>,

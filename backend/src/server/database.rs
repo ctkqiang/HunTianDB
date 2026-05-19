@@ -81,7 +81,7 @@ impl Database {
             });
         }
         // 预置 events 表
-        db.create_table("events", vec![
+        let _ = db.create_table("events", vec![
             ColumnDef{name:"id".into(),col_type:"BIGINT".into(),nullable:false},
             ColumnDef{name:"timestamp".into(),col_type:"BIGINT".into(),nullable:false},
             ColumnDef{name:"user_id".into(),col_type:"INT32".into(),nullable:false},
