@@ -4,7 +4,6 @@
 //! 包括连接池、超时控制和优雅关闭。
 
 use std::collections::HashMap;
-use std::sync::Arc;
 use parking_lot::RwLock;
 use chrono::{DateTime, Utc};
 

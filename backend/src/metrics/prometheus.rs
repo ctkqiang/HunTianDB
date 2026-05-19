@@ -8,7 +8,7 @@
 //! - WAL 大小
 
 use prometheus::{
-    IntCounter, IntGauge, Histogram, Registry,
+    IntCounter, IntGauge, Histogram,
     register_int_counter, register_int_gauge, register_histogram,
 };
 

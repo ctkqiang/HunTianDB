@@ -18,14 +18,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("配置已加载, 数据目录: {}", config.data_dir.display());
 
     // 初始化加密管理器
-    let enc_manager = huntiandb::auth::encryption::EncryptionManager::new(&config.encryption_key);
+    let _enc_manager = huntiandb::auth::encryption::EncryptionManager::new(&config.encryption_key);
     tracing::info!("AES-256-GCM 加密管理器已初始化");
 
     // 初始化存储引擎
-    let ring_buffer = Arc::new(
+    let _ring_buffer = Arc::new(
         huntiandb::storage::RingBuffer::new(1_000_000) // 1M 容量
     );
-    let wal = Arc::new(
+    let _wal = Arc::new(
         huntiandb::storage::WriteAheadLog::new(
             &config.encryption_key,
             config.data_dir.join("wal"),

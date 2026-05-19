@@ -104,7 +104,7 @@ impl ParquetWriter {
 
     fn events_to_record_batch(events: &[Event]) -> HunTianResult<RecordBatch> {
         let schema = Arc::new(Self::arrow_schema());
-        let len = events.len();
+        let _len = events.len();
 
         let ids: Vec<i64> = events.iter().map(|e| e.id).collect();
         let timestamps: Vec<i64> = events.iter().map(|e| e.timestamp.timestamp_nanos_opt().unwrap_or(0)).collect();

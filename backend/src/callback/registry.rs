@@ -3,7 +3,6 @@
 //! 注册和管理自定义回调函数。
 
 use std::collections::HashMap;
-use std::sync::Arc;
 use parking_lot::RwLock;
 use crate::callback::executor::CallbackFn;
 

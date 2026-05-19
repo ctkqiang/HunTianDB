@@ -4,8 +4,6 @@
 //! 和 Bloom 过滤器实现高性能查询。
 //! 目标：10 亿行扫描 < 100ms。
 
-use std::sync::Arc;
-use arrow::array::ArrayRef;
 use arrow::record_batch::RecordBatch;
 use crate::error::HunTianResult;
 
@@ -66,7 +64,7 @@ impl QueryExecutor {
     /// 并行扫描所有匹配时间范围的 Parquet 分区，
     /// 利用 Bloom 过滤器快速跳过不相关文件。
     pub async fn execute_filter(
-        filter: &QueryFilter,
+        _filter: &QueryFilter,
     ) -> HunTianResult<QueryResult> {
         let start = std::time::Instant::now();
 

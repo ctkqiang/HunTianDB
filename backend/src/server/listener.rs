@@ -5,12 +5,11 @@
 
 use std::path::Path;
 use std::sync::Arc;
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
 use rustls::ServerConfig;
 use crate::config::Config;
 use crate::error::HunTianResult;
-use crate::server::postgres_protocol::PostgresProtocol;
 
 /// TLS 监听器
 pub struct TlsListener {
@@ -48,7 +47,7 @@ impl TlsListener {
             tracing::debug!("新连接: {}", peer);
 
             let acceptor = self.acceptor.clone();
-            let config = self.config.clone();
+            let _config = self.config.clone();
 
             tokio::spawn(async move {
                 match acceptor.accept(stream).await {

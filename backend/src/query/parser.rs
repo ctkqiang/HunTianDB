@@ -5,7 +5,7 @@
 
 use sqlparser::dialect::GenericDialect;
 use sqlparser::parser::Parser;
-use sqlparser::ast::{Statement, SetExpr};
+use sqlparser::ast::Statement;
 use crate::error::{HunTianError, HunTianResult};
 
 #[derive(Debug, Clone)]

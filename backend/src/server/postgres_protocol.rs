@@ -3,7 +3,7 @@
 //! 支持标准的 Start-up → Authentication → Query(SIMPLE) 流程。
 //! 使 HunTianDB 可作为 psql/pgx 等标准客户端的直连替代。
 
-use bytes::{Buf, BufMut, BytesMut};
+use bytes::{Buf, BytesMut};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use crate::error::{HunTianError, HunTianResult};

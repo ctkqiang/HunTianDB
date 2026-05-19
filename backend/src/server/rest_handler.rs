@@ -53,7 +53,7 @@ pub fn build_router(state: Arc<ApiState>) -> Router {
 }
 
 /// GET /health — 健康检查
-async fn health_handler(State(state): State<Arc<ApiState>>) -> Json<HealthResponse> {
+async fn health_handler(State(_state): State<Arc<ApiState>>) -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "ok".into(),
         version: env!("CARGO_PKG_VERSION").into(),
@@ -63,7 +63,7 @@ async fn health_handler(State(state): State<Arc<ApiState>>) -> Json<HealthRespon
 
 /// POST /api/query — 执行 SQL 查询
 async fn query_handler(
-    State(state): State<Arc<ApiState>>,
+    State(_state): State<Arc<ApiState>>,
     Json(req): Json<QueryRequest>,
 ) -> Result<Json<QueryResponse>, (StatusCode, String)> {
     tracing::info!("查询请求: {}", req.sql);
@@ -78,7 +78,7 @@ async fn query_handler(
 
 /// GET /api/snapshots — 获取快照列表
 async fn snapshots_handler(
-    State(state): State<Arc<ApiState>>,
+    State(_state): State<Arc<ApiState>>,
 ) -> Json<Vec<String>> {
     Json(vec![])
 }

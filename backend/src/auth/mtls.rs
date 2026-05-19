@@ -4,7 +4,6 @@
 
 use std::path::Path;
 use std::sync::Arc;
-use rustls::pki_types::CertificateDer;
 use rustls::server::WebPkiClientVerifier;
 use rustls::server::danger::ClientCertVerifier;
 use rustls::RootCertStore;

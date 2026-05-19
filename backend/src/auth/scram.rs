@@ -4,7 +4,6 @@
 //! 使用常量时间比较防止时序攻击。
 
 use sha2::{Sha256, Digest};
-use hmac::Hmac;
 use pbkdf2::pbkdf2_hmac;
 use crate::error::HunTianResult;
 

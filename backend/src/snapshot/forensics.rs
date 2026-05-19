@@ -3,7 +3,7 @@
 //! 支持因果链分析、锁冲突检测和逆向事件追溯。
 
 use std::collections::{HashMap, HashSet};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use crate::models::{Event, LockRecord};
 
 /// 事件因果链
@@ -83,7 +83,7 @@ impl ForensicsAnalyzer {
     ///
     /// 返回检测到的死锁环（如果有）。
     pub fn detect_deadlocks(&self) -> Vec<Vec<i32>> {
-        let mut deadlocks = Vec::new();
+        let deadlocks = Vec::new();
 
         // 构建等待图：holder → waiters
         let mut wait_graph: HashMap<i32, HashSet<i32>> = HashMap::new();
