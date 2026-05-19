@@ -45,8 +45,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pg_port = config.postgres_port;
     let pg_db = db.clone();
     let pg_handle = tokio::spawn(async move {
-        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", pg_port)).await.unwrap();
-        tracing::info!("PostgreSQL 线协议监听: 0.0.0.0:{} (明文)", pg_port);
+        let addr = format!("0.0.0.0:{}", pg_port);
+        let socket = tokio::net::TcpSocket::new_v4().unwrap();
+        socket.set_reuseaddr(true).unwrap();
+        socket.bind(addr.parse().unwrap()).unwrap();
+        let listener = socket.listen(1024).unwrap();
+        tracing::info!("PostgreSQL 线协议监听: {} (明文, SO_REUSEADDR)", addr);
         loop {
             let (stream, peer) = listener.accept().await.unwrap();
             let db = pg_db.clone();
@@ -74,8 +78,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let api_router = api_router.layer(cors);
 
     let rest_addr = format!("0.0.0.0:{}", config.rest_port);
-    let rest_listener = tokio::net::TcpListener::bind(&rest_addr).await?;
-    tracing::info!("REST API 监听器启动: {}", rest_addr);
+    let rest_socket = tokio::net::TcpSocket::new_v4().unwrap();
+    rest_socket.set_reuseaddr(true).unwrap();
+    rest_socket.bind(rest_addr.parse().unwrap()).unwrap();
+    let rest_listener = rest_socket.listen(1024).unwrap();
+    tracing::info!("REST API 监听器启动: {} (SO_REUSEADDR)", rest_addr);
 
     let rest_handle = tokio::spawn(async move {
         axum::serve(rest_listener, api_router).await

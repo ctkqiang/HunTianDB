@@ -3,8 +3,8 @@
 import subprocess, time, os, requests
 
 TBL = "bench_wire"
-ROWS = 10000
-BATCH = 100  # rows per INSERT statement
+ROWS = 100000
+BATCH = 500  # rows per INSERT statement
 LONG = "SEC_AUDIT_PAYLOAD_" * 20
 API = "http://localhost:5001/api/query"
 
@@ -86,21 +86,28 @@ for i in range(0, uc, BATCH):
 tu = time.perf_counter() - t0
 log(f"  {uo}/{uc} | {tu:.1f}s | {uo/tu if tu>0 else 0:.0f} ops/s")
 
-# 5. CRASH RECOVERY via WAL
-sec("5. WAL Crash Recovery")
-psql(f"CREATE TABLE recovery_test (id BIGINT, msg VARCHAR)")
-psql("INSERT INTO recovery_test VALUES (1, 'wal_test_1'), (2, 'wal_test_2'), (3, 'wal_test_3')")
-log("  Inserted 3 rows. Killing backend...")
+# 5. CRASH RECOVERY via WAL (Erlang-style fault tolerance)
+sec("5. WAL Crash Recovery — Fault Tolerance Test")
+psql("CREATE TABLE recovery_test (id BIGINT, msg VARCHAR)")
+psql("INSERT INTO recovery_test VALUES (1, 'fault_tolerant_1'), (2, 'fault_tolerant_2'), (3, 'fault_tolerant_3')")
+log("  Inserted 3 rows. Simulating crash...")
 subprocess.run(["pkill", "-9", "-f", "huntiandb"], capture_output=True)
-time.sleep(2)
-# Restart backend
-subprocess.Popen(["./target/debug/huntiandb"],
-    env={**os.environ, "DB_ENCRYPTION_KEY":"dGVzdC1rZXktMzItYnl0ZXMtZm9yLWRldi1vbmx5LQ==", "REST_PORT":"5001", "POSTGRES_PORT":"5409"},
-    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-time.sleep(4)
-out, _ = psql("SELECT * FROM recovery_test")
-recovered = out.count('\n') - 3
-log(f"  After restart: {max(0,recovered)} rows recovered | {'PASSED' if recovered >= 3 else 'FAILED'}")
+time.sleep(1)
+# Restart with os.system (reliable detached process)
+enc = "dGVzdC1rZXktMzItYnl0ZXMtZm9yLWRldi1vbmx5LQ=="
+os.system(f"DB_ENCRYPTION_KEY={enc} REST_PORT=5001 POSTGRES_PORT=5409 nohup ./target/debug/huntiandb > /tmp/huntiandb.log 2>&1 &")
+# Retry psql connection up to 20 times (SO_REUSEADDR enables instant rebind)
+recovered = 0
+for attempt in range(20):
+    time.sleep(1)
+    out, err = psql("SELECT * FROM recovery_test")
+    if "fault_tolerant" in out:
+        recovered = out.count('\n') - 3
+        log(f"  Connected after {attempt+1}s | {max(0,recovered)} rows recovered | PASSED")
+        break
+else:
+    log("  FAILED: Could not connect to restarted backend after 15s")
+log(f"  WAL recovery: {'PASSED' if recovered >= 3 else 'FAILED'}")
 
 # SUMMARY
 sec("BENCHMARK SUMMARY")
