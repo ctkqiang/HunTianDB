@@ -2,34 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
-:root,
-[theme-mode="light"] {
-  --td-brand-color: #7C3AED;
-  --td-brand-color-hover: #6D28D9;
-  --td-brand-color-active: #5B21B6;
-  --td-brand-color-light: #F5F3FF;
-  --td-radius-default: 6px;
-  --td-radius-medium: 8px;
-  --td-radius-large: 12px;
-}
-
-[theme-mode="dark"] {
-  --td-brand-color: #A78BFA;
-  --td-brand-color-hover: #C4B5FD;
-  --td-brand-color-active: #8B5CF6;
-  --td-brand-color-light: #1E1B4B;
-}
-
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
-  -webkit-font-smoothing: antialiased;
-}
-
+body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; -webkit-font-smoothing: antialiased; }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--td-scrollbar-color); border-radius: 3px; }
 
-code, pre, textarea[style*="monospace"] {
-  font-family: "JetBrains Mono", "Fira Code", "SF Mono", "Monaco", "Consolas", monospace !important;
-}
+.kpi       { display: flex; align-items: center; gap: 14px; padding: 4px 0; }
+.kpi-icon  { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.kpi-val   { font-size: 24px; font-weight: 700; line-height: 1.1; color: var(--td-text-color-primary); }
+.kpi-label { font-size: 12px; color: var(--td-text-color-placeholder); margin-top: 2px; }
+
+.evt-row   { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; cursor: pointer; border-bottom: 1px solid var(--td-component-stroke); transition: background .15s; }
+.evt-row:hover { background: var(--td-bg-color-container-hover); }
+.evt-dot   { width: 8px; height: 8px; border-radius: 4px; margin-top: 6px; flex-shrink: 0; }
+
+.tbl-item  { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 8px; background: var(--td-bg-color-component); }
+
+.empty     { display: flex; align-items: center; justify-content: center; color: var(--td-text-color-placeholder); font-size: 13px; }
+
+.mono   { font-family: "JetBrains Mono","Fira Code",monospace; }
+.c-muted { color: var(--td-text-color-placeholder); }
+.fs11    { font-size: 11px; }
+.fs12    { font-size: 12px; }
+.fs13    { font-size: 13px; }
+.fw6     { font-weight: 600; }
+.fw7     { font-weight: 700; }
+.mt2     { margin-top: 2px; }
+.mt4     { margin-top: 4px; }
