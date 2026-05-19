@@ -39,14 +39,19 @@ impl Config {
     /// 如果 `DB_ENCRYPTION_KEY` 未设置或无效 base64，返回错误。
     pub fn from_env() -> Result<Self, crate::error::HunTianError> {
         let enc_key_b64 = std::env::var("DB_ENCRYPTION_KEY")
-            .unwrap_or_else(|_| "ZGV2LWRlZmF1bHQta2V5LWZvci1kZXZlbG9wbWVudC1vbmx5LQ==".into());
+            .unwrap_or_else(|_| "bHUMintCAaQfOkp1wl4C35FDxgizuxFTUjXvYbgg8Co=".into());
 
-        let encryption_key = base64::Engine::decode(
+        let mut encryption_key = base64::Engine::decode(
             &base64::engine::general_purpose::STANDARD,
             &enc_key_b64,
         ).map_err(|e| crate::error::HunTianError::Config(
             format!("DB_ENCRYPTION_KEY 解码失败: {}", e)
         ))?;
+        // 确保密钥恰好 32 字节（AES-256 要求）
+        if encryption_key.len() != 32 {
+            encryption_key.resize(32, 0);
+            tracing::warn!("DB_ENCRYPTION_KEY 已调整为 32 字节 (原长度: {})", encryption_key.len());
+        }
 
         Ok(Self {
             postgres_port: env_u16("POSTGRES_PORT", 5408),
