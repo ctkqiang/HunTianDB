@@ -20,12 +20,11 @@ export function MainLayout({ children }: { children?: ReactNode }) {
       {/* ---- HEADER ---- */}
       <Header style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 20px", height: 52,
+        padding: "0 10px", height: 60,
         borderBottom: "1px solid var(--td-component-stroke)",
         background: "var(--td-bg-color-container)", flexShrink: 0,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Button variant="text" shape="square" size="small" icon={sidebarCollapsed?<MenuUnfoldIcon/>:<MenuFoldIcon/>} onClick={toggleSidebar}/>
           <div style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0,
             background: "linear-gradient(135deg, #7C3AED, #A855F7)",
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -34,15 +33,16 @@ export function MainLayout({ children }: { children?: ReactNode }) {
         </div>
 
         <Space size={4}>
-          <Button variant="text" shape="square" size="small" title={theme==="dark"?"浅色模式":"深色模式"}
-            icon={theme==="dark"?<MoonIcon/>:<SunnyIcon/>}
-            onClick={()=>setTheme(theme==="dark"?"light":"dark")}
-          />
-          <Radio.Group variant="default-filled" size="small" value={lang} onChange={v=>setLang(v as"zh"|"en")}>
-            <Radio.Button value="zh">中</Radio.Button>
-            <Radio.Button value="en">EN</Radio.Button>
-          </Radio.Group>
-          <Dropdown options={[{content:t("logout"),value:"logout",prefixIcon:<LogoutIcon/>}]} onClick={({value})=>{if(value==="logout")signOut()}}>
+          <Dropdown options={[
+            {content:theme==="dark"?"浅色模式":"深色模式",value:"theme",prefixIcon:theme==="dark"?<SunnyIcon/>:<MoonIcon/>},
+            {content:lang==="zh"?"Switch to English":"切换到中文",value:"lang",prefixIcon:lang==="zh"?<MoonIcon/>:<SunnyIcon/>},
+            {content:"—",value:"divider",divider:true},
+            {content:t("logout"),value:"logout",prefixIcon:<LogoutIcon/>},
+          ]} onClick={({value})=>{
+            if(value==="theme")setTheme(theme==="dark"?"light":"dark");
+            if(value==="lang")setLang(lang==="zh"?"en":"zh");
+            if(value==="logout")signOut();
+          }}>
             <Space size={6} style={{cursor:"pointer",padding:"0 4px"}}>
               <Avatar size="small" icon={<UserIcon/>}/>
               <span style={{fontSize:13}}>{user?.username??"admin"}</span>
@@ -59,6 +59,7 @@ export function MainLayout({ children }: { children?: ReactNode }) {
           background: "var(--td-bg-color-container)", flexShrink: 0,
           display: "flex", flexDirection: "column",
         }}>
+        
           <Menu value={path} collapsed={sidebarCollapsed} onChange={v=>nav(v as string)} style={{flex:1}}>
             {[
               ["/",<DashboardIcon/>,t("dashboard")],
