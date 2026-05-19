@@ -21,7 +21,7 @@ export function LoginPage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #0a0818 0%, #151030 50%, #0d1424 100%)" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #1A0808 0%, #2D1010 50%, #240D0D 100%)" }}>
       <div style={{ width: 380 }}>
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <img src="/logo.png" alt="HunTianDB" style={{width:56,height:56,borderRadius:12,boxShadow:"0 6px 20px rgba(0,0,0,0.3)"}}/>
