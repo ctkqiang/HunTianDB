@@ -5,10 +5,13 @@ import { useEvents } from "@/hooks/useEvents";
 import { useT } from "@/i18n/useT";
 
 const mockThroughput = [
-  { t: "14:00", eps: 0.85 }, { t: "14:05", eps: 0.92 }, { t: "14:10", eps: 0.88 },
-  { t: "14:15", eps: 0.95 }, { t: "14:20", eps: 1.02 }, { t: "14:25", eps: 0.98 },
-  { t: "14:30", eps: 1.05 }, { t: "14:35", eps: 0.99 }, { t: "14:40", eps: 1.10 },
-  { t: "14:45", eps: 1.08 }, { t: "14:50", eps: 1.15 }, { t: "14:55", eps: 1.20 },
+  { t: "14:00", eps: 856320 }, { t: "14:01", eps: 892100 }, { t: "14:02", eps: 934500 },
+  { t: "14:03", eps: 910200 }, { t: "14:04", eps: 887600 }, { t: "14:05", eps: 951400 },
+  { t: "14:06", eps: 978300 }, { t: "14:07", eps: 1020500 }, { t: "14:08", eps: 996800 },
+  { t: "14:09", eps: 1043200 }, { t: "14:10", eps: 1010800 }, { t: "14:11", eps: 987500 },
+  { t: "14:12", eps: 1056700 }, { t: "14:13", eps: 1089200 }, { t: "14:14", eps: 1103400 },
+  { t: "14:15", eps: 1078000 }, { t: "14:16", eps: 1125600 }, { t: "14:17", eps: 1150000 },
+  { t: "14:18", eps: 1182300 }, { t: "14:19", eps: 1201000 }, { t: "14:20", eps: 1194500 },
 ];
 
 const TYPE_MAP: Record<string, string> = {
@@ -60,15 +63,15 @@ export function Dashboard() {
 
       <Row gutter={[16, 16]}>
         <Col span={14}>
-          <Card bordered title={t("write_throughput") + " (M/s)"}>
+          <Card bordered title={t("write_throughput")}>
             <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={mockThroughput} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-                <defs><linearGradient id="grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#7C3AED" stopOpacity={0.25} /><stop offset="100%" stopColor="#7C3AED" stopOpacity={0} /></linearGradient></defs>
+              <AreaChart data={mockThroughput} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <defs><linearGradient id="grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#7C3AED" stopOpacity={0.2} /><stop offset="100%" stopColor="#7C3AED" stopOpacity={0} /></linearGradient></defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--td-component-stroke)" vertical={false} />
-                <XAxis dataKey="t" tick={{ fontSize: 11 }} stroke="var(--td-text-color-placeholder)" interval={2} />
-                <YAxis tick={{ fontSize: 11 }} stroke="var(--td-text-color-placeholder)" domain={[0, "auto"]} tickFormatter={(v) => `${v}M`} width={48} />
-                <Tooltip contentStyle={{ background: "var(--td-bg-color-container)", border: "1px solid var(--td-component-stroke)", borderRadius: 8, fontSize: 12 }} formatter={(v: number) => [`${v}M`, t("write_throughput")]} />
-                <Area type="monotone" dataKey="eps" stroke="#7C3AED" strokeWidth={2} fill="url(#grad)" />
+                <XAxis dataKey="t" tick={{ fontSize: 10 }} stroke="var(--td-text-color-placeholder)" interval={3} tickLine={false} />
+                <YAxis tick={{ fontSize: 10 }} stroke="var(--td-text-color-placeholder)" tickFormatter={(v) => `${(v / 1000000).toFixed(1)}M`} width={48} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ background: "var(--td-bg-color-container)", border: "1px solid var(--td-component-stroke)", borderRadius: 8, fontSize: 12 }} formatter={(v: number) => [`${(v / 1000000).toFixed(2)}M events/s`, t("write_throughput")]} labelFormatter={(l) => `${l}`} />
+                <Area type="monotone" dataKey="eps" stroke="#7C3AED" strokeWidth={1.5} fill="url(#grad)" />
               </AreaChart>
             </ResponsiveContainer>
           </Card>
