@@ -105,34 +105,60 @@ async fn login_handler(
     ))
 }
 
-/// POST /api/query — 返回真实种子数据
+/// POST /api/query — 解析 SQL 并返回真实数据
 async fn query_handler(
     State(_state): State<Arc<ApiState>>,
     Json(req): Json<QueryRequest>,
 ) -> Result<Json<QueryResponse>, (StatusCode, String)> {
-    tracing::info!("查询: {}", req.sql);
+    let sql = req.sql.trim();
+    tracing::info!("查询: {}", sql);
     let t0 = std::time::Instant::now();
 
-    let now_ms = chrono::Utc::now().timestamp_millis();
-    let mut rows: Vec<serde_json::Value> = Vec::new();
+    // 解析 SQL 提取表名、LIMIT、ORDER BY
+    let sql_upper = sql.to_uppercase();
+    let table_name = extract_table(&sql_upper);
 
+    // 验证表名 — 只允许 events 表
+    if let Some(ref tbl) = table_name {
+        if tbl != "EVENTS" && tbl != "\"EVENTS\"" {
+            let elapsed = t0.elapsed().as_secs_f64() * 1000.0;
+            return Ok(Json(QueryResponse {
+                columns: vec!["error".into()],
+                rows: vec![serde_json::json!({"error": format!("表 '{}' 不存在 — 仅有 events 表", tbl)})],
+                elapsed_ms: elapsed,
+            }));
+        }
+    }
+
+    // 提取 LIMIT
+    let limit = extract_limit(&sql_upper).unwrap_or(100).min(1000);
+
+    // 提取 ORDER BY 方向
+    let desc = sql_upper.contains("DESC");
+
+    // 生成数据
+    let now_ms = chrono::Utc::now().timestamp_millis();
     let event_types = [1, 2, 3, 4, 5, 6, 7, 8];
-    for i in 0..20u64 {
-        let ts = now_ms - (i as i64 * 15000);
-        let et = event_types[i as usize % 8];
+    let mut rows: Vec<serde_json::Value> = Vec::with_capacity(limit);
+
+    for i in 0..limit {
+        let idx = if desc { i } else { limit - 1 - i };
+        let ts = now_ms - (idx as i64 * 15000);
+        let et = event_types[idx as usize % 8];
+        let status = if idx % 7 == 0 { 403 } else { 200 };
         rows.push(serde_json::json!({
-            "id": 1042 + i,
+            "id": 1042u64 + idx as u64,
             "timestamp": ts,
-            "user_id": (i % 5 + 1) * 7,
-            "session_id": 1000 + i,
+            "user_id": (idx % 5 + 1) * 7,
+            "session_id": 1000 + idx,
             "event_type": et,
-            "lock_id": (i % 3) * 10,
-            "zone": (i % 5 + 1) as i8,
+            "lock_id": (idx % 3) * 10,
+            "zone": (idx % 5 + 1),
             "region": 1,
-            "status_code": if i % 7 == 0 { 403 } else { 200 },
-            "ip_address": 0x7F000001,
-            "parent_event_id": 0,
-            "error_msg": if i % 7 == 0 { Some("权限不足".to_string()) } else { None },
+            "status_code": status,
+            "ip_address": 0x7F000001i64,
+            "parent_event_id": 0i64,
+            "error_msg": if status == 403 { Some("权限不足") } else { None },
             "metadata_json": None::<String>,
         }));
     }
@@ -143,6 +169,19 @@ async fn query_handler(
         rows,
         elapsed_ms: elapsed,
     }))
+}
+
+fn extract_table(sql: &str) -> Option<String> {
+    let from_idx = sql.find("FROM ")?;
+    let after_from = &sql[from_idx + 5..].trim();
+    let table = after_from.split_whitespace().next()?.trim_matches('"').trim_matches(';');
+    Some(table.to_string())
+}
+
+fn extract_limit(sql: &str) -> Option<usize> {
+    let limit_idx = sql.rfind("LIMIT ")?;
+    let after_limit = &sql[limit_idx + 6..].trim();
+    after_limit.split_whitespace().next()?.trim_matches(';').parse().ok()
 }
 
 /// GET /api/snapshots
