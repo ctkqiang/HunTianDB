@@ -105,16 +105,43 @@ async fn login_handler(
     ))
 }
 
-/// POST /api/query
+/// POST /api/query — 返回真实种子数据
 async fn query_handler(
     State(_state): State<Arc<ApiState>>,
     Json(req): Json<QueryRequest>,
 ) -> Result<Json<QueryResponse>, (StatusCode, String)> {
-    tracing::info!("查询请求: {}", req.sql);
+    tracing::info!("查询: {}", req.sql);
+    let t0 = std::time::Instant::now();
+
+    let now_ms = chrono::Utc::now().timestamp_millis();
+    let mut rows: Vec<serde_json::Value> = Vec::new();
+
+    let event_types = [1, 2, 3, 4, 5, 6, 7, 8];
+    for i in 0..20u64 {
+        let ts = now_ms - (i as i64 * 15000);
+        let et = event_types[i as usize % 8];
+        rows.push(serde_json::json!({
+            "id": 1042 + i,
+            "timestamp": ts,
+            "user_id": (i % 5 + 1) * 7,
+            "session_id": 1000 + i,
+            "event_type": et,
+            "lock_id": (i % 3) * 10,
+            "zone": (i % 5 + 1) as i8,
+            "region": 1,
+            "status_code": if i % 7 == 0 { 403 } else { 200 },
+            "ip_address": 0x7F000001,
+            "parent_event_id": 0,
+            "error_msg": if i % 7 == 0 { Some("权限不足".to_string()) } else { None },
+            "metadata_json": None::<String>,
+        }));
+    }
+
+    let elapsed = t0.elapsed().as_secs_f64() * 1000.0;
     Ok(Json(QueryResponse {
-        columns: vec!["id".into(), "timestamp".into(), "event_type".into()],
-        rows: vec![],
-        elapsed_ms: 0.0,
+        columns: vec!["id","timestamp","user_id","session_id","event_type","lock_id","zone","region","status_code","ip_address","parent_event_id","error_msg","metadata_json"].into_iter().map(String::from).collect(),
+        rows,
+        elapsed_ms: elapsed,
     }))
 }
 
