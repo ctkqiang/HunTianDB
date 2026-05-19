@@ -65,7 +65,7 @@ export function Dashboard() {
               <div style={{width:6,height:6,borderRadius:3,marginTop:6,flexShrink:0,background:e.status_code<300?"var(--td-success-color)":"var(--td-error-color)"}}/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}><span style={{fontSize:12,fontWeight:600}}>{TL[e.event_type]??`E${e.event_type}`}</span><Tag size="small" theme={TC[e.event_type]||"default"} variant="light">#{e.id}</Tag><Tag size="small" variant="light" theme={e.status_code<300?"success":"danger"}>{e.status_code}</Tag></div>
-                <div style={{fontSize:11,color:"var(--td-text-color-placeholder)",marginTop:2}}>user={e.user_id} · zone{e.zone} · {tf(e.timestamp)}{e.error_msg?<span style={{color:"var(--td-error-color)",marginLeft:6}}>{e.error_msg}</span>:null}</div>
+                <div style={{fontSize:11,color:"var(--td-text-color-placeholder)",marginTop:2}}>user={e.user_id} · zone{e.zone} · {tfl(e.timestamp,lang)}{e.error_msg?<span style={{color:"var(--td-error-color)",marginLeft:6}}>{e.error_msg}</span>:null}</div>
               </div>
             </div>))}
           </div>}
