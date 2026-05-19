@@ -274,6 +274,10 @@ impl PostgresProtocol {
             self.send_row_desc("current_schemas").await?;
             self.send_data_row("{public}").await?;
             self.send_command_complete("SELECT", 1).await?;
+        } else if sql_upper.contains("PG_DATABASE") {
+            self.send_row_desc("datname").await?;
+            self.send_data_row("huntiandb").await?;
+            self.send_command_complete("SELECT", 1).await?;
         } else if sql_upper.contains("PG_TABLES") || sql_upper.contains("INFORMATION_SCHEMA.TABLES") {
             self.send_row_desc("table_name").await?;
             self.send_data_row("events").await?;
@@ -286,7 +290,7 @@ impl PostgresProtocol {
             self.send_row_desc("typname").await?;
             self.send_data_row("text").await?;
             self.send_command_complete("SELECT", 1).await?;
-        } else if sql_upper.contains("PG_CLASS") || sql_upper.contains("PG_ATTRIBUTE") {
+        } else if sql_upper.contains("PG_CLASS") || sql_upper.contains("PG_ATTRIBUTE") || sql_upper.contains("PG_CATALOG") || sql_upper.contains("INFORMATION_SCHEMA") {
             self.send_empty_result().await?;
             self.send_command_complete("SELECT", 0).await?;
         } else if sql_upper.starts_with("SELECT") {
