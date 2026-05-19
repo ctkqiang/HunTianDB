@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Card, Button, Space, Table, Tag, MessagePlugin, Textarea, Row, Col } from "tdesign-react";
-import { PlayCircleIcon, ClearIcon, TimeIcon, BrowseIcon } from "tdesign-icons-react";
+import { PlayCircleIcon, ClearIcon, DownloadIcon, UploadIcon } from "tdesign-icons-react";
 import { queryEvents } from "@/api/events";
 import type { QueryResponse } from "@/types/api";
 
@@ -55,10 +55,54 @@ export function QueryBuilder() {
 
   const isData = result && !result.columns.includes("suggestion") && !result.columns.includes("result") && !result.columns.includes("error");
 
+  const exportData = (fmt: string) => {
+    if(!result||!isData)return;const cols=result.columns.filter(c=>c!=="suggestion");const rows=result.rows as any[];
+    let content="",ext="",mime="text/plain";
+    if(fmt==="csv"){ext="csv";mime="text/csv";content=cols.join(",")+"\n"+rows.map((r:any)=>cols.map(c=>{const v=r[c];if(v===null||v===undefined)return"";const s=String(v);return s.includes(",")||s.includes('"')||s.includes("\n")?`"${s.replace(/"/g,'""')}"`:s}).join(",")).join("\n")}
+    else if(fmt==="json"){ext="json";mime="application/json";content=JSON.stringify(rows.map((r:any)=>{const o:any={};cols.forEach(c=>o[c]=r[c]);return o}),null,2)}
+    else if(fmt==="txt"){ext="txt";content=rows.map((r:any)=>cols.map(c=>`${c}: ${r[c]??"NULL"}`).join(" | ")).join("\n")}
+    const blob=new Blob([content],{type:mime});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`query_result.${ext}`;a.click();URL.revokeObjectURL(url);MessagePlugin.success(`导出 ${fmt.toUpperCase()} (${rows.length} 行)`)
+  };
+
+  const importFile = async (file: File) => {
+    const text = await file.text();
+    const fname = file.name.replace(/\.[^/.]+$/,"").replace(/[^a-zA-Z0-9_]/g,"_");
+    const ts = Date.now();
+    let rows: any[]=[],cols:string[]=[];
+    if(file.name.endsWith(".csv")){
+      const lines=text.split("\n").filter(l=>l.trim());if(lines.length<2){MessagePlugin.error("CSV至少需要标题行+数据行");return}
+      cols=lines[0].split(",").map(c=>c.trim().replace(/^"|"$/g,""));
+      rows=lines.slice(1).map(l=>{const vals:any[]=[];let cur="",inQ=false;for(const ch of l){if(ch==='"')inQ=!inQ;else if(ch===','&&!inQ){vals.push(cur.trim());cur=""}else cur+=ch}vals.push(cur.trim());return vals})
+    }else if(file.name.endsWith(".json")){
+      const data=JSON.parse(text);const arr=Array.isArray(data)?data:[data];if(arr.length===0){MessagePlugin.error("JSON为空");return}
+      cols=Object.keys(arr[0]);rows=arr.map((r:any)=>cols.map(c=>r[c]))
+    }else if(file.name.endsWith(".txt")){
+      const lines=text.split("\n").filter(l=>l.trim().includes("|"));
+      cols=lines[0].split("|").map(c=>c.split(":")[0].trim());
+      rows=lines.map(l=>l.split("|").map(p=>p.includes(":")?p.split(":").slice(1).join(":").trim():p.trim()))
+    }else{MessagePlugin.error("不支持的文件格式");return}
+
+    const tname = fname + "_" + ts;
+    const colDefs = cols.map(c=>`${c} VARCHAR`).join(", ");
+    const createSQL = `CREATE TABLE ${tname} (${colDefs})`;
+    try{
+      await queryEvents({sql:createSQL});MessagePlugin.success(`表 ${tname} 已创建`);
+      for(const row of rows){
+        const vals = row.map((v:any)=>v===null||v===undefined||String(v).toLowerCase()==="null"?"NULL":`'${String(v).replace(/'/g,"''")}'`).join(", ");
+        await queryEvents({sql:`INSERT INTO ${tname} VALUES (${vals})`});
+      }
+      MessagePlugin.success(`导入完成: ${rows.length} 行 → ${tname}`);
+      loadTables();
+    }catch(err:any){MessagePlugin.error(`导入失败: ${err?.message||err}`)}
+  };
+
+  const fileRef = useRef<HTMLInputElement>(null);
+
   return(<div>
+    <input type="file" accept=".csv,.json,.txt" style={{display:"none"}} ref={fileRef} onChange={e=>{const f=(e.target as HTMLInputElement).files?.[0];if(f){importFile(f);e.target.value=""}}}/>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
       <h2 style={{margin:0,fontSize:16,fontWeight:700}}>SQL 查询构建器</h2>
-      <Space>{tables.map(t=><Tag key={t.name} style={{cursor:"pointer"}} size="medium" variant="light" theme="primary" onClick={()=>execute(`SELECT * FROM ${t.name} LIMIT 30`)}>{t.name}<span style={{marginLeft:4,opacity:.6,fontSize:10}}>{t.rows??0}</span></Tag>)}</Space>
+      <Space>{tables.map(t=><Tag key={t.name} style={{cursor:"pointer"}} size="medium" variant="light" theme="primary" onClick={()=>execute(`SELECT * FROM ${t.name} LIMIT 30`)}>{t.name}<span style={{marginLeft:4,opacity:.6,fontSize:10}}>{t.rows??0}</span></Tag>)}<Button size="small" variant="outline" icon={<UploadIcon/>} onClick={()=>fileRef.current?.click()}>导入</Button></Space>
     </div>
 
     <Card bordered style={{marginBottom:16}}>
@@ -85,7 +129,7 @@ export function QueryBuilder() {
       <Card bordered style={{marginBottom:16}}>{result.rows.map((r:any,i:number)=><div key={i} style={{fontSize:13,color:r.error?"var(--td-error-color)":"var(--td-success-color)"}}>{r.result??r.error}</div>)}</Card>
     )}
     {isData && (
-      <Card bordered title={`结果 · ${result.columns.length} 列`}>
+      <Card bordered title={`结果 · ${result.columns.length} 列`} actions={<Space size={4}>{["csv","json","txt"].map(f=><Button key={f} size="small" variant="outline" icon={<DownloadIcon/>} onClick={()=>exportData(f)}>.{f}</Button>)}</Space>}>
         <Table data={result.rows} columns={cols} rowKey={(_:any,i:number)=>String(i)} maxHeight={500} bordered stripe hover size="small" empty="0 行" pagination={{defaultPageSize:50,pageSizeOptions:[20,50,100,200],showJumper:true}}/>
       </Card>
     )}

@@ -32,10 +32,6 @@ export function MainLayout({ children }: { children?: ReactNode }) {
         background: "var(--td-bg-color-container)", flexShrink: 0,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Button variant="text" shape="square" size="small"
-            icon={sidebarCollapsed ? <MenuUnfoldIcon /> : <MenuFoldIcon />}
-            onClick={toggleSidebar}
-          />
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{
               width: 26, height: 26, borderRadius: 7,
