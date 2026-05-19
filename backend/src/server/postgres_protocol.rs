@@ -139,11 +139,40 @@ impl PostgresProtocol {
                 self.send_data_row("huntiandb").await?;
                 self.send_command_complete("SELECT", 1).await?;
             } else if su.contains("PG_") || su.contains("INFORMATION_SCHEMA") {
-                self.send_empty_result().await?;
-                self.send_command_complete("SELECT", 0).await?;
+                // \dt / pg_catalog discovery — return actual tables
+                let names = { self.db.read().table_names() };
+                if names.is_empty() {
+                    self.send_empty_result().await?;
+                } else {
+                    self.send_row_desc("table_name").await?;
+                    for n in &names { self.send_data_row(n).await?; }
+                }
+                self.send_command_complete("SELECT", names.len() as u32).await?;
             } else {
                 self.send_error(&format!("表 '{}' 不存在", tbl)).await?;
             }
+        } else if su.starts_with("CREATE USER ") || su.starts_with("CREATE ROLE ") {
+            let rest = s.trim_start_matches("CREATE USER ").trim_start_matches("CREATE ROLE ").trim_start_matches("create user ").trim_start_matches("create role ").trim();
+            let name = rest.split_whitespace().next().unwrap_or("").trim_matches('"');
+            let pass = self.extract_quoted(rest, "PASSWORD").unwrap_or_else(|| "changeme".into());
+            let role = self.extract_quoted(rest, "ROLE").unwrap_or_else(|| "writer".into());
+            let result = { self.db.write().create_user(name, &pass, &role) };
+            match result {
+                Ok(()) => self.send_command_complete("CREATE USER", 1).await?,
+                Err(e) => self.send_error(&e).await?,
+            }
+        } else if su.starts_with("DROP USER ") || su.starts_with("DROP ROLE ") {
+            let name = su.trim_start_matches("DROP USER ").trim_start_matches("DROP ROLE ").trim().trim_end_matches(';').trim_matches('"');
+            let result = { self.db.write().drop_user(name) };
+            match result {
+                Ok(()) => self.send_command_complete("DROP USER", 1).await?,
+                Err(e) => self.send_error(&e).await?,
+            }
+        } else if su.starts_with("SHOW USERS") || su.starts_with("LIST USERS") || su == "\\DU" {
+            let usernames = { self.db.read().list_users().iter().map(|u| format!("{} ({})", u.username, u.role)).collect::<Vec<_>>() };
+            self.send_row_desc("username").await?;
+            for u in &usernames { self.send_data_row(u).await?; }
+            self.send_command_complete("SELECT", usernames.len() as u32).await?;
         } else {
             self.send_error(&format!("不支持: {}", s)).await?;
         }
@@ -184,6 +213,18 @@ impl PostgresProtocol {
             }
         }
         vec![]
+    }
+
+    fn extract_quoted(&self, sql: &str, keyword: &str) -> Option<String> {
+        let su = sql.to_uppercase();
+        let idx = su.find(&format!(" {} ", keyword.to_uppercase()))?;
+        let after = &sql[idx + keyword.len() + 2..].trim();
+        if after.starts_with('\'') {
+            let end = after[1..].find('\'')?;
+            Some(after[1..end+1].to_string())
+        } else {
+            after.split_whitespace().next().map(|s| s.trim_matches('\'').to_string())
+        }
     }
 
     fn parse_columns(&self, s: &str) -> Vec<crate::server::database::ColumnDef> {

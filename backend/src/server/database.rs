@@ -53,13 +53,37 @@ impl Table {
     }
 }
 
+/// 用户记录 — SCRAM-SHA-256 加密存储
+#[derive(Debug, Clone)]
+pub struct DbUser {
+    pub username: String,
+    pub password_hash: String,   // SCRAM-SHA-256 格式: "SCRAM-SHA-256$<salt>$<stored_key>$<server_key>$<iterations>"
+    pub role: String,            // admin / writer / reader
+}
+
 pub struct Database {
     pub tables: HashMap<String, Table>,
+    pub users: HashMap<String, DbUser>,
 }
 
 impl Database {
     pub fn new() -> Self {
-        let mut db = Self { tables: HashMap::new() };
+        let mut db = Self { tables: HashMap::new(), users: HashMap::new() };
+        // 预置默认用户
+        for (user, pass, role) in [
+            ("admin", "admin123", "admin"),
+            ("root", "root123", "admin"),
+            ("writer", "writer123", "writer"),
+            ("reader", "reader123", "reader"),
+        ] {
+            let scram = crate::auth::scram::ScramServer::from_password(pass).unwrap();
+            db.users.insert(user.to_string(), DbUser {
+                username: user.to_string(),
+                password_hash: format!("SCRAM-SHA-256${}${}${}${}",
+                    scram.stored_salt, scram.stored_key, scram.server_key, scram.iterations),
+                role: role.to_string(),
+            });
+        }
         // 预置 events 表
         db.create_table("events", vec![
             ColumnDef { name: "id".into(), col_type: "BIGINT".into(), nullable: false },
@@ -109,6 +133,50 @@ impl Database {
         }
         self.tables.remove(&name_lower);
         Ok(())
+    }
+
+    // ---- 用户管理 ----
+
+    pub fn create_user(&mut self, username: &str, password: &str, role: &str) -> Result<(), String> {
+        let name = username.to_lowercase();
+        if self.users.contains_key(&name) { return Err(format!("用户 '{}' 已存在", username)); }
+        if password.len() < 6 { return Err("密码至少6位".into()); }
+        let scram = crate::auth::scram::ScramServer::from_password(password)
+            .map_err(|e| format!("密码哈希失败: {}", e))?;
+        self.users.insert(name.clone(), DbUser {
+            username: name,
+            password_hash: format!("SCRAM-SHA-256${}${}${}${}",
+                scram.stored_salt, scram.stored_key, scram.server_key, scram.iterations),
+            role: role.to_string(),
+        });
+        Ok(())
+    }
+
+    pub fn drop_user(&mut self, username: &str) -> Result<(), String> {
+        let name = username.to_lowercase();
+        if !self.users.contains_key(&name) { return Err(format!("用户 '{}' 不存在", username)); }
+        self.users.remove(&name);
+        Ok(())
+    }
+
+    pub fn verify_password(&self, username: &str, password: &str) -> bool {
+        let name = username.to_lowercase();
+        self.users.get(&name).map(|u| {
+            let parts: Vec<&str> = u.password_hash.split('$').collect();
+            if parts.len() < 5 { return false; }
+            // Simple PBKDF2 verification via re-hash and compare stored_key
+            crate::auth::scram::ScramServer::verify_password(password, &u.password_hash)
+        }).unwrap_or(false)
+    }
+
+    pub fn get_user_role(&self, username: &str) -> Option<String> {
+        self.users.get(&username.to_lowercase()).map(|u| u.role.clone())
+    }
+
+    pub fn list_users(&self) -> Vec<&DbUser> {
+        let mut v: Vec<&DbUser> = self.users.values().collect();
+        v.sort_by(|a, b| a.username.cmp(&b.username));
+        v
     }
 }
 
