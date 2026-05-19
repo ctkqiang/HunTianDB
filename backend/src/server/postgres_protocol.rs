@@ -46,10 +46,10 @@ impl PostgresProtocol {
     ///
     /// 1. SSL 协商 → 2. 读取 StartupMessage → 3. 认证 → 4. 查询循环
     pub async fn handle_connection(&mut self) -> HunTianResult<()> {
-        // Step 0: SSL 协商 — 发送 'N' 拒绝 SSL (开发模式)
+        //0: SSL 协商 — 发送 'N' 拒绝 SSL (开发模式)
         self.handle_ssl_request().await?;
 
-        // Step 1: 读取启动消息
+        //1: 读取启动消息
         let startup = self.read_startup_message().await?;
         self.username = startup.parameters.iter()
             .find(|(k, _)| k == "user")
@@ -58,15 +58,26 @@ impl PostgresProtocol {
             .find(|(k, _)| k == "database")
             .map(|(_, v)| v.clone());
 
-        // Step 2: 发送认证成功
+        //2: 发送认证成功
         self.send_authentication_ok().await?;
 
-        // Step 3: 发送 ReadyForQuery
+        //2.5: 发送 ParameterStatus (JDBC/DBeaver 需要)
+        self.send_parameter_status("server_version", "9.6.0-HunTianDB").await?;
+        self.send_parameter_status("server_encoding", "UTF8").await?;
+        self.send_parameter_status("client_encoding", "UTF8").await?;
+        self.send_parameter_status("DateStyle", "ISO, MDY").await?;
+        self.send_parameter_status("integer_datetimes", "on").await?;
+        self.send_parameter_status("IntervalStyle", "postgres").await?;
+
+        //2.6: 发送 BackendKeyData (JDBC 需要)
+        self.send_backend_key_data().await?;
+
+        //3: 发送 ReadyForQuery
         self.send_ready_for_query().await?;
 
         self.authenticated = true;
 
-        // Step 4: 查询循环
+        //4: 查询循环
         loop {
             match self.read_message().await {
                 Ok(msg_type) => {
@@ -150,6 +161,33 @@ impl PostgresProtocol {
     async fn send_authentication_ok(&mut self) -> HunTianResult<()> {
         // 'R' (Authentication) + 长度(8) + 类型(0=OK)
         let msg: [u8; 9] = [b'R', 0, 0, 0, 8, 0, 0, 0, 0];
+        self.stream.write_all(&msg).await?;
+        Ok(())
+    }
+
+    /// 发送 ParameterStatus 消息 ('S')
+    async fn send_parameter_status(&mut self, name: &str, value: &str) -> HunTianResult<()> {
+        let name_bytes = name.as_bytes();
+        let val_bytes = value.as_bytes();
+        let len = 4 + name_bytes.len() + 1 + val_bytes.len() + 1;
+        let mut msg = Vec::with_capacity(1 + len as usize);
+        msg.push(b'S');
+        msg.extend_from_slice(&(len as i32).to_be_bytes());
+        msg.extend_from_slice(name_bytes);
+        msg.push(0);
+        msg.extend_from_slice(val_bytes);
+        msg.push(0);
+        self.stream.write_all(&msg).await?;
+        Ok(())
+    }
+
+    /// 发送 BackendKeyData 消息 ('K')
+    async fn send_backend_key_data(&mut self) -> HunTianResult<()> {
+        let msg: [u8; 13] = [
+            b'K', 0, 0, 0, 12,  // type + length
+            0, 0, 0, 1,          // PID = 1
+            0, 0, 0, 0,          // secret key = 0
+        ];
         self.stream.write_all(&msg).await?;
         Ok(())
     }
