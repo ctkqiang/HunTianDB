@@ -1,15 +1,15 @@
 :root, [theme-mode="light"] {
-  --td-brand-color: #D97706;
-  --td-brand-color-hover: #B45309;
-  --td-brand-color-active: #92400E;
-  --td-brand-color-light: #FFF7ED;
+  --td-brand-color: #DC2626;
+  --td-brand-color-hover: #B91C1C;
+  --td-brand-color-active: #991B1B;
+  --td-brand-color-light: #FEF2F2;
 }
 
 [theme-mode="dark"] {
-  --td-brand-color: #F59E0B;
-  --td-brand-color-hover: #FBBF24;
-  --td-brand-color-active: #D97706;
-  --td-brand-color-light: #451A03;
+  --td-brand-color: #EF4444;
+  --td-brand-color-hover: #F87171;
+  --td-brand-color-active: #DC2626;
+  --td-brand-color-light: #450A0A;
 }
 
 body {
