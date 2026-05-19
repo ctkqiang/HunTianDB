@@ -73,19 +73,22 @@ export function Dashboard() {
       </Col>
     </Row>
 
-    <Drawer visible={detail!==null} onClose={()=>setDetail(null)} header={<span>事件详情 <Tag size="small" theme={TC[detail?.event_type]||"default"} variant="light" style={{marginLeft:8}}>{TL[detail?.event_type]||"?"}</Tag></span>} size="medium" footer={false}>
+    <Drawer visible={detail!==null} onClose={()=>setDetail(null)} header="事件详情" size="medium" placement="right" footer={false}>
       {detail&&(()=>{
         const f=(k:string)=>detail[k];
         const ip=(n:number)=>`${(n>>>24)&0xFF}.${(n>>>16)&0xFF}.${(n>>>8)&0xFF}.${n&0xFF}`;
-        const dt=(ms:number)=>new Date(ms).toLocaleString("zh-CN");
-        const sec=(t:string,c:any)=>(<div key={t} style={{marginBottom:14}}><div style={{fontSize:11,fontWeight:700,color:"var(--td-text-color-secondary)",marginBottom:6,letterSpacing:1}}>{t}</div><div style={{background:"var(--td-bg-color-component)",borderRadius:8,padding:"4px 12px"}}>{c}</div></div>);
-        const r=(k:string,v:any)=>(<div key={k} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid var(--td-component-stroke)",fontSize:13}}><span style={{color:"var(--td-text-color-placeholder)"}}>{k}</span><span style={{fontWeight:600,fontFamily:"monospace"}}>{v}</span></div>);
-        return(<div>
-          {sec("标识",[r("ID",f("id")),r("事件类型",<Tag size="small" theme={TC[f("event_type")]||"default"} variant="light">{TL[f("event_type")]||f("event_type")}</Tag>)])}
-          {sec("时间",r("时间戳",dt(f("timestamp"))))}
-          {sec("安全上下文",[r("用户 ID",f("user_id")),r("会话 ID",f("session_id")),r("IP 地址",ip(f("ip_address"))),r("分区",f("zone")),r("区域",f("region"))])}
-          {sec("结果",[r("状态码",<Tag size="small" theme={f("status_code")<300?"success":"danger"} variant="light">{f("status_code")}</Tag>),r("锁 ID",f("lock_id")),r("父事件",f("parent_event_id")||"—")])}
-          {(f("error_msg")||f("metadata_json"))&&sec("附加",[f("error_msg")&&r("错误消息",<span style={{color:"var(--td-error-color)"}}>{f("error_msg")}</span>),f("metadata_json")&&r("元数据",f("metadata_json"))])}
+        const fields:([string,any])[]=[
+          ["ID",f("id")],["事件类型",<Tag size="small" theme={TC[f("event_type")]||"default"} variant="light">{TL[f("event_type")]||f("event_type")}</Tag>],
+          ["时间",new Date(f("timestamp")).toLocaleString("zh-CN")],
+          ["用户 ID",f("user_id")],["会话 ID",f("session_id")],["IP 地址",ip(f("ip_address"))],
+          ["分区",f("zone")],["区域",f("region")],
+          ["状态码",<Tag size="small" theme={f("status_code")<300?"success":"danger"} variant="light">{f("status_code")}</Tag>],
+          ["锁 ID",f("lock_id")],["父事件",f("parent_event_id")||"—"],
+        ];
+        if(f("error_msg"))fields.push(["错误消息",<span style={{color:"var(--td-error-color)"}}>{f("error_msg")}</span>]);
+        if(f("metadata_json"))fields.push(["元数据",<code style={{fontSize:11}}>{f("metadata_json")}</code>]);
+        return(<div style={{display:"flex",flexDirection:"column"}}>
+          {fields.map(([k,v],i)=>(<div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--td-component-stroke)",fontSize:13}}><span style={{color:"var(--td-text-color-placeholder)",flexShrink:0}}>{k}</span><span style={{fontWeight:600,fontFamily:"monospace",textAlign:"right",marginLeft:16}}>{v}</span></div>))}
         </div>);
       })()}
     </Drawer>

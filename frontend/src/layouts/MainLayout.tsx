@@ -27,7 +27,7 @@ export function MainLayout({ children }: { children?: ReactNode }) {
     <Layout style={{ height: "100vh" }}>
       <Header style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "5px 24px 0", height: 48,
+        padding: "0 24px", height: 48,
         borderBottom: "1px solid var(--td-component-stroke)",
         background: "var(--td-bg-color-container)", flexShrink: 0,
       }}>
@@ -64,7 +64,7 @@ export function MainLayout({ children }: { children?: ReactNode }) {
             options={[{ content: t("logout"), value: "logout", prefixIcon: <LogoutIcon /> }]}
             onClick={({ value }) => { if (value === "logout") signOut(); }}
           >
-            <Space size={6} style={{ cursor: "pointer" }}>
+            <Space size={8} style={{ cursor: "pointer" }}>
               <Avatar size="small" icon={<UserIcon />} />
               <span style={{ fontSize: 13 }}>{user?.username ?? "admin"}</span>
             </Space>
