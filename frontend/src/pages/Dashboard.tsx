@@ -35,14 +35,20 @@ export function Dashboard() {
 
     <Row gutter={[16,16]}>
       <Col span={14}>
-        <Card bordered title="写入吞吐量" style={{marginBottom:16}}>
-          {chart.length===0?<div style={{height:220,display:"flex",alignItems:"center",justifyContent:"center",color:"var(--td-text-color-placeholder)",fontSize:13}}>等待数据 ...</div>:
-          <ResponsiveContainer width="100%" height={220}><AreaChart data={chart} margin={{top:4,right:4,left:-16,bottom:0}}><defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#8B5CF6" stopOpacity={.15}/><stop offset="100%" stopColor="#8B5CF6" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" stroke="var(--td-component-stroke)" vertical={false}/><XAxis dataKey="t" tick={{fontSize:10}} stroke="var(--td-text-color-placeholder)" interval={4} tickLine={false}/><YAxis tick={{fontSize:10}} stroke="var(--td-text-color-placeholder)" tickFormatter={v=>`${(v/1e6).toFixed(1)}M`} width={44} axisLine={false} tickLine={false}/><Tooltip contentStyle={{borderRadius:8,fontSize:12}} formatter={(v:number)=>[`${(v/1e6).toFixed(2)}M/s`]}/><Area type="monotone" dataKey="v" stroke="#8B5CF6" strokeWidth={1.5} fill="url(#ga)" animationDuration={400}/></AreaChart></ResponsiveContainer>}
-        </Card>
-        <Card bordered title="事件类型分布">
-          {dist.length===0?<div style={{height:180,display:"flex",alignItems:"center",justifyContent:"center",color:"var(--td-text-color-placeholder)",fontSize:13}}>暂无数据</div>:
-          <ResponsiveContainer width="100%" height={180}><BarChart data={dist} margin={{top:4,right:4,left:-16,bottom:0}}><CartesianGrid strokeDasharray="3 3" stroke="var(--td-component-stroke)" vertical={false}/><XAxis dataKey="name" tick={{fontSize:10}} stroke="var(--td-text-color-placeholder)" tickLine={false}/><YAxis tick={{fontSize:10}} stroke="var(--td-text-color-placeholder)" width={32} axisLine={false} tickLine={false}/><Tooltip contentStyle={{borderRadius:8,fontSize:12}}/><Bar dataKey="cnt" fill="#8B5CF6" radius={[4,4,0,0]} animationDuration={400}/></BarChart></ResponsiveContainer>}
-        </Card>
+        <Row gutter={[12,12]}>
+          <Col span={12}>
+            <Card bordered title="写入吞吐量" style={{height:"100%"}}>
+              {chart.length===0?<div style={{height:200,display:"flex",alignItems:"center",justifyContent:"center",color:"var(--td-text-color-placeholder)",fontSize:13}}>等待数据 ...</div>:
+              <ResponsiveContainer width="100%" height={200}><AreaChart data={chart} margin={{top:4,right:4,left:-12,bottom:0}}><defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#8B5CF6" stopOpacity={.15}/><stop offset="100%" stopColor="#8B5CF6" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" stroke="var(--td-component-stroke)" vertical={false}/><XAxis dataKey="t" tick={{fontSize:9}} stroke="var(--td-text-color-placeholder)" interval={5} tickLine={false}/><YAxis tick={{fontSize:9}} stroke="var(--td-text-color-placeholder)" tickFormatter={v=>`${(v/1e6).toFixed(1)}M`} width={40} axisLine={false} tickLine={false}/><Tooltip contentStyle={{borderRadius:8,fontSize:11}} formatter={(v:number)=>[`${(v/1e6).toFixed(2)}M/s`]}/><Area type="monotone" dataKey="v" stroke="#8B5CF6" strokeWidth={1.5} fill="url(#ga)" animationDuration={400}/></AreaChart></ResponsiveContainer>}
+            </Card>
+          </Col>
+          <Col span={12}>
+            <Card bordered title="事件类型分布" style={{height:"100%"}}>
+              {dist.length===0?<div style={{height:200,display:"flex",alignItems:"center",justifyContent:"center",color:"var(--td-text-color-placeholder)",fontSize:13}}>暂无数据</div>:
+              <ResponsiveContainer width="100%" height={200}><BarChart data={dist} margin={{top:4,right:4,left:-12,bottom:0}}><CartesianGrid strokeDasharray="3 3" stroke="var(--td-component-stroke)" vertical={false}/><XAxis dataKey="name" tick={{fontSize:9}} stroke="var(--td-text-color-placeholder)" tickLine={false}/><YAxis tick={{fontSize:9}} stroke="var(--td-text-color-placeholder)" width={28} axisLine={false} tickLine={false}/><Tooltip contentStyle={{borderRadius:8,fontSize:11}}/><Bar dataKey="cnt" fill="#8B5CF6" radius={[3,3,0,0]} animationDuration={400}/></BarChart></ResponsiveContainer>}
+            </Card>
+          </Col>
+        </Row>
       </Col>
 
       <Col span={10}>
