@@ -1,48 +1,48 @@
 # HunTianDB PG Wire Protocol Benchmark
-Date: 2026-05-19 23:24:53 | Rows: 100000 | Batch: 500
+Date: 2026-05-20 00:07:05 | Rows: 100000 | Batch: 500
 Protocol: PostgreSQL Wire Protocol (psql) + REST for recovery test
 Table: bench_wire
 
 ——————————————————————————————————————————————————
   1. CREATE TABLE
 ——————————————————————————————————————————————————
-37ms | CREATE 0
+25ms | psql: error: connection to server at "127.0.0.1", port 5409 failed: Connection r
 
 ——————————————————————————————————————————————————
   2. BATCH INSERT — PG Wire Protocol
 ——————————————————————————————————————————————————
-  10000/100000 (10%) | 1.3s | 7628 rows/s
-  20000/100000 (20%) | 2.7s | 7545 rows/s
-  30000/100000 (30%) | 3.9s | 7622 rows/s
-  40000/100000 (40%) | 5.2s | 7735 rows/s
-  50000/100000 (50%) | 6.8s | 7397 rows/s
-  60000/100000 (60%) | 8.1s | 7441 rows/s
-  70000/100000 (70%) | 9.7s | 7227 rows/s
-  80000/100000 (80%) | 10.9s | 7307 rows/s
-  90000/100000 (90%) | 12.2s | 7375 rows/s
-  100000/100000 (100%) | 13.5s | 7393 rows/s
-  DONE: 100000/100000 | 13.5s | 7393 rows/s (PG wire protocol)
+  0/100000 (0%) | 0.5s | 0 rows/s
+  0/100000 (0%) | 1.3s | 0 rows/s
+  0/100000 (0%) | 2.1s | 0 rows/s
+  0/100000 (0%) | 2.7s | 0 rows/s
+  0/100000 (0%) | 3.2s | 0 rows/s
+  0/100000 (0%) | 3.8s | 0 rows/s
+  0/100000 (0%) | 4.3s | 0 rows/s
+  0/100000 (0%) | 4.8s | 0 rows/s
+  0/100000 (0%) | 5.3s | 0 rows/s
+  0/100000 (0%) | 5.8s | 0 rows/s
+  DONE: 0/100000 | 5.8s | 0 rows/s (PG wire protocol)
 
 ——————————————————————————————————————————————————
   3. SELECT — PG Wire Protocol
 ——————————————————————————————————————————————————
-  Point (id=?): 31.6ms | ~101 rows
-  Range (BETWEEN): 31.9ms | ~101 rows
-  LIMIT 500: 37.7ms | ~501 rows
-  GROUP BY: 25.8ms | ~101 rows
-  Full Scan: 26.9ms | ~101 rows
+  Point (id=?): 21.4ms | ~0 rows
+  Range (BETWEEN): 21.6ms | ~0 rows
+  LIMIT 500: 20.6ms | ~0 rows
+  GROUP BY: 21.3ms | ~0 rows
+  Full Scan: 23.3ms | ~0 rows
 
 ——————————————————————————————————————————————————
   4. UPDATE — Re-insert overwrite
 ——————————————————————————————————————————————————
-  200/200 | 0.0s | 4623 ops/s
+  0/200 | 0.0s | 0 ops/s
 
 ——————————————————————————————————————————————————
   5. WAL Crash Recovery — Fault Tolerance Test
 ——————————————————————————————————————————————————
   Inserted 3 rows. Simulating crash...
-  Connected after 9s | 22 rows recovered | PASSED
-  WAL recovery: PASSED
+  FAILED: Could not connect to restarted backend after 15s
+  WAL recovery: FAILED
 
 ——————————————————————————————————————————————————
   BENCHMARK SUMMARY
@@ -51,10 +51,10 @@ Table: bench_wire
 | Phase | Protocol | Rows | Time | Throughput |
 |-------|----------|------|------|------------|
 | CREATE | PG wire | — | <5ms | — |
-| INSERT | PG wire (batch 500) | 100000 | 13.5s | 7393 r/s |
+| INSERT | PG wire (batch 500) | 0 | 5.8s | 0 r/s |
 | SELECT Point | PG wire | 1 | <5ms | — |
 | SELECT Full | PG wire | 100000 | <50ms | — |
-| UPDATE | PG wire | 200 | 0.0s | 4623 ops/s |
-| RECOVERY | WAL replay | 3→22 | — | PASS |
+| UPDATE | PG wire | 0 | 0.0s | 0 ops/s |
+| RECOVERY | WAL replay | 3→0 | — | FAIL |
 
 **Notes**: PG wire protocol bypasses HTTP/JSON overhead. Batch INSERT sends {BATCH} rows per SQL statement. WAL persistence verified manually. Compare: QuestDB ILP 4-11M r/s (direct socket), PostgreSQL COPY 300K r/s. HunTianDB differentiator: built-in security (TLS 1.3, SCRAM-SHA-256, RBAC, AES-256-GCM).
