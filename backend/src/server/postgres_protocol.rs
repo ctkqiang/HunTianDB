@@ -200,36 +200,84 @@ impl PostgresProtocol {
         Ok(())
     }
 
-    /// 处理简单查询 — 返回基础 PG 兼容响应
+    // 发送 RowDescription (单列, TEXT=25)
+    async fn send_row_desc(&mut self, col_name: &str) -> HunTianResult<()> {
+        let name = col_name.as_bytes();
+        // length = 4(self) + 2(#cols) + name+1 + 4(tableOID) + 2(colAttr) + 4(typeOID) + 2(typeSize) + 4(typeMod) + 2(format)
+        let len: i32 = 4 + 2 + (name.len() as i32) + 1 + 4 + 2 + 4 + 2 + 4 + 2;
+        let mut m = Vec::with_capacity(1 + len as usize);
+        m.push(b'T');
+        m.extend_from_slice(&len.to_be_bytes());
+        m.extend_from_slice(&1i16.to_be_bytes());  // 1 column
+        m.extend_from_slice(name); m.push(0);       // column name + null
+        m.extend_from_slice(&0i32.to_be_bytes());   // table OID
+        m.extend_from_slice(&1i16.to_be_bytes());   // column attr num
+        m.extend_from_slice(&25i32.to_be_bytes());  // type OID = TEXT
+        m.extend_from_slice(&(-1i16).to_be_bytes());// type size = variable
+        m.extend_from_slice(&(-1i32).to_be_bytes());// type modifier = -1
+        m.extend_from_slice(&0i16.to_be_bytes());   // format = text
+        self.stream.write_all(&m).await?;
+        Ok(())
+    }
+
+    // 发送单列 DataRow
+    async fn send_data_row(&mut self, value: &str) -> HunTianResult<()> {
+        let val = value.as_bytes();
+        let len: i32 = 4 + 2 + 4 + (val.len() as i32);
+        let mut m = Vec::with_capacity(1 + len as usize);
+        m.push(b'D');
+        m.extend_from_slice(&len.to_be_bytes());
+        m.extend_from_slice(&1i16.to_be_bytes()); // 1 column
+        m.extend_from_slice(&(val.len() as i32).to_be_bytes()); // value length
+        m.extend_from_slice(val);
+        self.stream.write_all(&m).await?;
+        Ok(())
+    }
+
+    // 发送空结果 (RowDescription 0列)
+    async fn send_empty_result(&mut self) -> HunTianResult<()> {
+        self.stream.write_all(&[b'T', 0, 0, 0, 6, 0, 0]).await?;
+        Ok(())
+    }
+
+    /// 处理简单查询 — DBeaver发现查询返回真实数据
     async fn handle_query(&mut self, sql: &str) -> HunTianResult<()> {
         tracing::info!("PG查询: {}", sql);
         let sql_upper = sql.trim().to_uppercase();
 
-        // 静默处理PG客户端发现查询
         let silent = sql_upper.starts_with("SET ")
-            || sql_upper.starts_with("SHOW ")
-            || sql_upper.starts_with("RESET ")
-            || sql_upper.starts_with("BEGIN")
-            || sql_upper.starts_with("START ")
-            || sql_upper.starts_with("COMMIT")
-            || sql_upper.starts_with("ROLLBACK")
-            || sql_upper.starts_with("DISCARD ")
-            || sql_upper.starts_with("DEALLOCATE ")
-            || sql_upper.starts_with("CLOSE ")
-            || sql_upper.starts_with("LISTEN ")
-            || sql_upper.starts_with("UNLISTEN ")
-            || sql_upper.starts_with("NOTIFY ");
+            || sql_upper.starts_with("SHOW ") || sql_upper.starts_with("RESET ")
+            || sql_upper.starts_with("BEGIN") || sql_upper.starts_with("START ")
+            || sql_upper.starts_with("COMMIT") || sql_upper.starts_with("ROLLBACK")
+            || sql_upper.starts_with("DISCARD ") || sql_upper.starts_with("DEALLOCATE ")
+            || sql_upper.starts_with("CLOSE ") || sql_upper.starts_with("LISTEN ")
+            || sql_upper.starts_with("UNLISTEN ") || sql_upper.starts_with("NOTIFY ");
 
         if silent {
             self.send_command_complete("OK", 0).await?;
-        } else if sql_upper.starts_with("SELECT") || sql_upper.starts_with("WITH ") || sql_upper.starts_with("VALUES ") || sql_upper.starts_with("TABLE ") || sql_upper.starts_with("EXPLAIN ") || sql_upper.starts_with("DESCRIBE ") {
-            let t_msg = [b'T', 0, 0, 0, 6, 0, 0]; // RowDescription: 0 columns
-            self.stream.write_all(&t_msg).await?;
-            self.send_command_complete("SELECT", 0).await?;
         } else if sql_upper.starts_with("INSERT") {
             self.send_command_complete("INSERT", 1).await?;
         } else if sql_upper.starts_with("CREATE ") || sql_upper.starts_with("DROP ") || sql_upper.starts_with("ALTER ") {
             self.send_command_complete("OK", 0).await?;
+        } else if sql_upper.contains("CURRENT_DATABASE()") || sql_upper.contains("CURRENT_DATABASE ()") {
+            self.send_row_desc("current_database").await?;
+            self.send_data_row("huntiandb").await?;
+            self.send_command_complete("SELECT", 1).await?;
+        } else if sql_upper.contains("VERSION()") || sql_upper.contains("VERSION ()") {
+            self.send_row_desc("version").await?;
+            self.send_data_row("PostgreSQL 9.6.0 HunTianDB v1.0").await?;
+            self.send_command_complete("SELECT", 1).await?;
+        } else if sql_upper.contains("CURRENT_SCHEMAS") {
+            self.send_row_desc("current_schemas").await?;
+            self.send_data_row("{public}").await?;
+            self.send_command_complete("SELECT", 1).await?;
+        } else if sql_upper.contains("PG_TABLES") || sql_upper.contains("INFORMATION_SCHEMA") {
+            self.send_row_desc("table_name").await?;
+            self.send_data_row("events").await?;
+            self.send_command_complete("SELECT", 1).await?;
+        } else if sql_upper.starts_with("SELECT") {
+            self.send_empty_result().await?;
+            self.send_command_complete("SELECT", 0).await?;
         } else {
             self.send_error(&format!("不支持: {}", sql)).await?;
         }
