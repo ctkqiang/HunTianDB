@@ -101,30 +101,6 @@ impl Database {
             ColumnDef { name: "error_msg".into(), col_type: "VARCHAR".into(), nullable: true },
             ColumnDef { name: "metadata_json".into(), col_type: "BYTEA".into(), nullable: true },
         ]);
-        // 种子数据 — 20条安全审计事件
-        if let Some(t) = db.tables.get_mut("events") {
-            let now = chrono::Utc::now().timestamp_millis();
-            for i in 0..20u64 {
-                let ts = now - (i as i64 * 15000);
-                let et = [1,2,3,4,5,6,7,8][i as usize % 8];
-                let st = if i % 7 == 0 { 403u16 } else { 200u16 };
-                let mut row = std::collections::HashMap::new();
-                row.insert("id".into(), serde_json::json!(1042 + i));
-                row.insert("timestamp".into(), serde_json::json!(ts));
-                row.insert("user_id".into(), serde_json::json!(((i%5+1)*7) as i32));
-                row.insert("session_id".into(), serde_json::json!(1000 + i));
-                row.insert("event_type".into(), serde_json::json!(et as i8));
-                row.insert("lock_id".into(), serde_json::json!(((i%3)*10) as i32));
-                row.insert("zone".into(), serde_json::json!((i%5+1) as i8));
-                row.insert("region".into(), serde_json::json!(1i8));
-                row.insert("status_code".into(), serde_json::json!(st as i16));
-                row.insert("ip_address".into(), serde_json::json!(0x7F000001i64));
-                row.insert("parent_event_id".into(), serde_json::json!(0i64));
-                row.insert("error_msg".into(), if st==403{serde_json::json!("权限不足")}else{serde_json::Value::Null});
-                row.insert("metadata_json".into(), serde_json::Value::Null);
-                t.rows.push(row);
-            }
-        }
         db
     }
 
