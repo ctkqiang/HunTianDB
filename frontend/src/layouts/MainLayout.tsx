@@ -36,7 +36,6 @@ export function MainLayout({ children }: { children?: ReactNode }) {
           <Dropdown options={[
             {content:theme==="dark"?"浅色模式":"深色模式",value:"theme",prefixIcon:theme==="dark"?<MoonIcon/>:<SunnyIcon/>},
             {content:lang==="zh"?"Switch to English":"切换到中文",value:"lang",prefixIcon:<TranslateIcon/>},
-            {content:"—",value:"divider",divider:true},
             {content:t("logout"),value:"logout",prefixIcon:<LogoutIcon/>},
           ]} onClick={({value})=>{
             if(value==="theme")setTheme(theme==="dark"?"light":"dark");
@@ -51,7 +50,7 @@ export function MainLayout({ children }: { children?: ReactNode }) {
         </Space>
       </Header>
 
-      {/* ---- BODY ---- */}
+
       <Layout style={{flex:1,minHeight:0}}>
         <Aside style={{
           width: sidebarCollapsed?64:220, transition:"width .2s",
