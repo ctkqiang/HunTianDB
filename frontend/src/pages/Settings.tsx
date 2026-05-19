@@ -1,75 +1,73 @@
-import { Card, Divider } from "tdesign-react";
-import { LinkIcon, MailIcon, UserIcon } from "tdesign-icons-react";
+import { Card, Row, Col, Tag, Space, Divider } from "tdesign-react";
+import { LinkIcon, MailIcon, UserIcon, ServerIcon, ShieldIcon, LayersIcon, CodeIcon } from "tdesign-icons-react";
 
 export function Settings() {
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">设置</h2>
+      <div style={{ marginBottom: 20 }}>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>系统设置</h2>
+        <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--td-text-color-placeholder)" }}>管理混天DB实例配置与系统信息</p>
+      </div>
 
-      <Card title="系统信息" bordered className="mb-4">
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <span className="text-gray-500 w-20">版本</span>
-            <span className="font-mono">v1.0.0</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-gray-500 w-20">PG 端口</span>
-            <span className="font-mono">5408</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-gray-500 w-20">REST 端口</span>
-            <span className="font-mono">5000</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-gray-500 w-20">存储引擎</span>
-            <span>Apache Parquet + Arrow</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-gray-500 w-20">加密</span>
-            <span>TLS 1.3 + P-521 ECDHE + AES-256-GCM</span>
-          </div>
-        </div>
-      </Card>
-
-      <Card title="关于" bordered className="mb-4">
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <UserIcon className="text-purple-600" />
-            <span className="text-gray-500 w-20">作者</span>
-            <span>钟智强</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <MailIcon className="text-purple-600" />
-            <span className="text-gray-500 w-20">邮箱</span>
-            <span>ctkqiang@dingtalk.com</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <LinkIcon className="text-purple-600" />
-            <span className="text-gray-500 w-20">仓库</span>
-            <a href="https://gitcode.com/ctkqiang_sr/HunTianDB" className="text-blue-600 underline">
-              gitcode.com/ctkqiang_sr/HunTianDB
-            </a>
-          </div>
-        </div>
-      </Card>
-
-      <Card title="技术栈" bordered>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          {[
-            ["后端", "Rust + Tokio + Axum"],
-            ["前端", "React 18 + TDesign + TanStack"],
-            ["存储", "Arrow 53 + Parquet 53"],
-            ["安全", "rustls 0.23 + ring 0.17"],
-            ["SQL 解析", "sqlparser 0.51"],
-            ["测试", "Criterion + Proptest"],
-          ].map(([label, value]) => (
-            <div key={label} className="flex gap-2">
-              <span className="text-gray-500">{label}:</span>
-              <span>{value}</span>
+      <Row gutter={[16, 16]}>
+        <Col span={8}>
+          <Card bordered title="系统信息">
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {[
+                ["版本", "v1.0.0-enterprise"], ["PG 端口", "5408 (TLS 1.3)"], ["REST 端口", "5000 (HTTPS)"],
+                ["存储引擎", "Apache Parquet + Arrow 53"], ["压缩", "Snappy / LZ4 / Zstd"],
+              ].map(([k, v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                  <span style={{ color: "var(--td-text-color-placeholder)" }}>{k}</span>
+                  <Tag size="small" variant="light" theme="primary">{v}</Tag>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </Card>
+          </Card>
+        </Col>
+
+        <Col span={8}>
+          <Card bordered title="安全配置">
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {[
+                ["传输加密", "TLS 1.3 + P-521 ECDHE"], ["静态加密", "AES-256-GCM (HKDF)"],
+                ["认证方式", "mTLS + SCRAM-SHA-256 + JWT"], ["密钥管理", "HKDF-SHA256 派生"],
+                ["访问控制", "RBAC (Admin/Auditor/Writer/Reader)"],
+              ].map(([k, v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                  <span style={{ color: "var(--td-text-color-placeholder)" }}>{k}</span>
+                  <Tag size="small" variant="light" theme="success">{v}</Tag>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </Col>
+
+        <Col span={8}>
+          <Card bordered title="关于">
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: "linear-gradient(135deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 20 }}>混</div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 16 }}>混天DB Enterprise</div>
+                  <div style={{ fontSize: 11, color: "var(--td-text-color-placeholder)" }}>时序安全数据库</div>
+                </div>
+              </div>
+              <Divider style={{ margin: 0 }} />
+              {[
+                ["作者", "钟智强", <UserIcon />], ["邮箱", "ctkqiang@dingtalk.com", <MailIcon />],
+                ["仓库", "gitcode.com/ctkqiang_sr/HunTianDB", <CodeIcon />],
+              ].map(([k, v, icon]) => (
+                <div key={k} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
+                  <span style={{ color: "var(--td-brand-color)" }}>{icon}</span>
+                  <span style={{ color: "var(--td-text-color-placeholder)", width: 40 }}>{k}</span>
+                  <span>{v}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </Col>
+      </Row>
     </div>
   );
 }

@@ -2,10 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
+:root {
+  --td-radius-small: 6px;
+  --td-radius-medium: 10px;
+  --td-radius-large: 14px;
 }
 
-#root { min-height: 100vh; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Enterprise scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--td-scrollbar-color);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--td-text-color-placeholder);
+}
+
+/* Monaco / Code editor font */
+code, pre, .monaco-editor, textarea[style*="monospace"] {
+  font-family: "JetBrains Mono", "Fira Code", "SF Mono", "Monaco", "Consolas", monospace !important;
+}
