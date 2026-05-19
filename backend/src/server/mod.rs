@@ -6,3 +6,4 @@ pub mod listener;
 pub mod postgres_protocol;
 pub mod rest_handler;
 pub mod connection;
+pub mod database;

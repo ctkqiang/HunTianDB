@@ -1,54 +1,22 @@
-//! REST API 处理器 — 认证、查询、快照
+//! REST API 处理器 — 完整 SQL 支持 (DDL + DML)
 
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::Json,
-    routing::{get, post},
-    Router,
-};
+use axum::{extract::State, http::StatusCode, response::Json, routing::{get, post}, Router};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use crate::config::Config;
+use crate::server::database::{ColumnDef, Database, SharedDb};
 
 pub struct ApiState {
     pub config: Arc<Config>,
+    pub db: SharedDb,
 }
 
-#[derive(Serialize)]
-struct HealthResponse {
-    status: String,
-    version: String,
-    uptime_seconds: u64,
-}
+#[derive(Serialize)] struct HealthResponse { status: String, version: String, uptime_seconds: u64 }
+#[derive(Deserialize)] pub struct LoginRequest { pub username: String, pub password: String }
+#[derive(Serialize)] pub struct LoginResponse { pub token: String, pub role: String }
+#[derive(Deserialize)] struct QueryRequest { sql: String }
+#[derive(Serialize)] struct QueryResponse { columns: Vec<String>, rows: Vec<serde_json::Value>, elapsed_ms: f64 }
 
-#[derive(Deserialize)]
-pub struct LoginRequest {
-    pub username: String,
-    pub password: String,
-}
-
-#[derive(Serialize)]
-pub struct LoginResponse {
-    pub token: String,
-    pub role: String,
-}
-
-#[derive(Deserialize)]
-struct QueryRequest {
-    sql: String,
-    #[serde(default)]
-    params: Option<Vec<String>>,
-}
-
-#[derive(Serialize)]
-struct QueryResponse {
-    columns: Vec<String>,
-    rows: Vec<serde_json::Value>,
-    elapsed_ms: f64,
-}
-
-/// 构建 REST API 路由
 pub fn build_router(state: Arc<ApiState>) -> Router {
     Router::new()
         .route("/health", get(health_handler))
@@ -58,181 +26,196 @@ pub fn build_router(state: Arc<ApiState>) -> Router {
         .with_state(state)
 }
 
-/// GET /health
 async fn health_handler(State(_state): State<Arc<ApiState>>) -> Json<HealthResponse> {
-    Json(HealthResponse {
-        status: "ok".into(),
-        version: env!("CARGO_PKG_VERSION").into(),
-        uptime_seconds: 0,
-    })
+    Json(HealthResponse { status: "ok".into(), version: env!("CARGO_PKG_VERSION").into(), uptime_seconds: 0 })
 }
 
-/// POST /api/auth/login — 登录认证
-///
-/// 默认账号: admin / admin123 (开发模式)
-/// 角色: admin (全权限)
 async fn login_handler(
-    State(_state): State<Arc<ApiState>>,
+    State(state): State<Arc<ApiState>>,
     Json(req): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, (StatusCode, Json<serde_json::Value>)> {
-    // 开发模式: admin / admin123
-    if req.username == "admin" && req.password == "admin123" {
-        let token = crate::auth::jwt::JwtManager::new(&_state.config.jwt_secret)
-            .issue_token("1", "admin", "admin")
-            .map_err(|_| (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "JWT签发失败"})),
-            ))?;
-
-        return Ok(Json(LoginResponse { token, role: "admin".into() }));
+    let valid = (req.username == "admin" && req.password == "admin123")
+        || (req.username == "reader" && req.password == "reader123");
+    if !valid {
+        return Err((StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error":"用户名或密码错误"}))));
     }
-
-    // reader 账号: reader / reader123
-    if req.username == "reader" && req.password == "reader123" {
-        let token = crate::auth::jwt::JwtManager::new(&_state.config.jwt_secret)
-            .issue_token("2", "reader", "reader")
-            .map_err(|_| (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "JWT签发失败"})),
-            ))?;
-
-        return Ok(Json(LoginResponse { token, role: "reader".into() }));
-    }
-
-    Err((
-        StatusCode::UNAUTHORIZED,
-        Json(serde_json::json!({"error": "用户名或密码错误"})),
-    ))
+    let role = if req.username == "admin" { "admin" } else { "reader" };
+    let token = crate::auth::jwt::JwtManager::new(&state.config.jwt_secret)
+        .issue_token("1", &req.username, role)
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":"JWT签发失败"}))))?;
+    Ok(Json(LoginResponse { token, role: role.into() }))
 }
 
-/// POST /api/query — 解析 SQL 并返回真实数据
 async fn query_handler(
-    State(_state): State<Arc<ApiState>>,
+    State(state): State<Arc<ApiState>>,
     Json(req): Json<QueryRequest>,
 ) -> Result<Json<QueryResponse>, (StatusCode, String)> {
-    let sql = req.sql.trim();
-    tracing::info!("查询: {}", sql);
-    let t0 = std::time::Instant::now();
-
+    let sql = req.sql.trim().to_string();
     let sql_upper = sql.to_uppercase().trim().trim_end_matches(';').to_string();
+    let t0 = std::time::Instant::now();
+    let mut db = state.db.write();
 
-    // SHOW TABLES — 列出所有表
+    let elapsed = || t0.elapsed().as_secs_f64() * 1000.0;
+
+    // SHOW TABLES
     if sql_upper == "SHOW TABLES" {
-        let elapsed = t0.elapsed().as_secs_f64() * 1000.0;
-        return Ok(Json(QueryResponse {
-            columns: vec!["table_name".into(), "rows".into(), "engine".into(), "encryption".into()],
-            rows: vec![serde_json::json!({
-                "table_name": "events",
-                "rows": "100M+",
-                "engine": "Parquet (columnar)",
-                "encryption": "AES-256-GCM",
-            })],
-            elapsed_ms: elapsed,
-        }));
+        let tables = db.table_names();
+        let rows: Vec<_> = tables.into_iter().map(|t| {
+            let tbl = db.get_table(&t).unwrap();
+            serde_json::json!({"table_name": t, "columns": tbl.columns.len(), "rows": tbl.rows.len()})
+        }).collect();
+        return Ok(Json(QueryResponse { columns: vec!["table_name".into(),"columns".into(),"rows".into()], rows, elapsed_ms: elapsed() }));
     }
 
-    // DESCRIBE / SHOW COLUMNS — 列出列信息
-    if sql_upper.starts_with("DESCRIBE ") || sql_upper.starts_with("SHOW COLUMNS FROM ") || sql_upper.starts_with("DESC ") {
-        let elapsed = t0.elapsed().as_secs_f64() * 1000.0;
-        return Ok(Json(QueryResponse {
-            columns: vec!["column_name".into(), "type".into(), "nullable".into(), "indexed".into(), "encoding".into()],
-            rows: vec![
-                serde_json::json!({"column_name":"id","type":"BIGINT","nullable":"NO","indexed":"PK","encoding":"plain"}),
-                serde_json::json!({"column_name":"timestamp","type":"BIGINT","nullable":"NO","indexed":"YES","encoding":"delta"}),
-                serde_json::json!({"column_name":"user_id","type":"INT32","nullable":"NO","indexed":"YES","encoding":"dict"}),
-                serde_json::json!({"column_name":"session_id","type":"INT64","nullable":"NO","indexed":"YES","encoding":"dict"}),
-                serde_json::json!({"column_name":"event_type","type":"INT8","nullable":"NO","indexed":"NO","encoding":"dict"}),
-                serde_json::json!({"column_name":"lock_id","type":"INT32","nullable":"NO","indexed":"YES","encoding":"dict"}),
-                serde_json::json!({"column_name":"zone","type":"INT8","nullable":"NO","indexed":"YES","encoding":"dict"}),
-                serde_json::json!({"column_name":"region","type":"INT8","nullable":"NO","indexed":"YES","encoding":"dict"}),
-                serde_json::json!({"column_name":"status_code","type":"INT16","nullable":"NO","indexed":"NO","encoding":"plain"}),
-                serde_json::json!({"column_name":"ip_address","type":"INT32","nullable":"NO","indexed":"NO","encoding":"plain"}),
-                serde_json::json!({"column_name":"parent_event_id","type":"INT64","nullable":"NO","indexed":"NO","encoding":"plain"}),
-                serde_json::json!({"column_name":"error_msg","type":"VARCHAR","nullable":"YES","indexed":"NO","encoding":"snappy"}),
-                serde_json::json!({"column_name":"metadata_json","type":"BYTEA","nullable":"YES","indexed":"NO","encoding":"snappy"}),
-            ],
-            elapsed_ms: elapsed,
-        }));
+    // DESCRIBE / SHOW COLUMNS / DESC
+    if sql_upper.starts_with("DESCRIBE ") || sql_upper.starts_with("DESC ") || sql_upper.starts_with("SHOW COLUMNS FROM ") {
+        let tbl_name = sql_upper
+            .trim_start_matches("DESCRIBE ").trim_start_matches("DESC ")
+            .trim_start_matches("SHOW COLUMNS FROM ").trim();
+        return match db.get_table(tbl_name) {
+            Some(tbl) => {
+                let rows: Vec<_> = tbl.columns.iter().map(|c| serde_json::json!({
+                    "column_name": c.name, "type": c.col_type, "nullable": if c.nullable {"YES"}else{"NO"}
+                })).collect();
+                Ok(Json(QueryResponse { columns: vec!["column_name".into(),"type".into(),"nullable".into()], rows, elapsed_ms: elapsed() }))
+            }
+            None => Err((StatusCode::BAD_REQUEST, format!("表 '{}' 不存在", tbl_name))),
+        };
     }
 
-    // 解析 SQL 提取表名、LIMIT、ORDER BY
-    let table_upper = extract_table(&sql_upper);
-    let table_orig = extract_table(sql);
-
-    // 验证表名 — 只允许 events 表，返回可点击的建议SQL
-    if let Some(ref tbl) = table_upper {
-        if tbl != "EVENTS" && tbl != "\"EVENTS\"" {
-            let bad_table = table_orig.as_deref().unwrap_or(tbl);
-            let suggestion = sql.replacen(bad_table, "events", 1);
-            let elapsed = t0.elapsed().as_secs_f64() * 1000.0;
-            return Ok(Json(QueryResponse {
-                columns: vec!["error".into(), "suggestion".into()],
-                rows: vec![serde_json::json!({
-                    "error": format!("表 '{}' 不存在", tbl.to_lowercase()),
-                    "suggestion": suggestion,
-                })],
-                elapsed_ms: elapsed,
-            }));
+    // DROP TABLE
+    if sql_upper.starts_with("DROP TABLE ") {
+        let tbl_name = sql_upper.trim_start_matches("DROP TABLE ").trim().trim_matches('"');
+        match db.drop_table(tbl_name) {
+            Ok(()) => Ok(Json(QueryResponse { columns: vec!["result".into()], rows: vec![serde_json::json!({"result": format!("表 '{}' 已删除", tbl_name)})], elapsed_ms: elapsed() })),
+            Err(e) => Err((StatusCode::BAD_REQUEST, e)),
         }
     }
-
-    // 提取 LIMIT
-    let limit = extract_limit(&sql_upper).unwrap_or(100).min(1000);
-
-    // 提取 ORDER BY 方向
-    let desc = sql_upper.contains("DESC");
-
-    // 生成数据
-    let now_ms = chrono::Utc::now().timestamp_millis();
-    let event_types = [1, 2, 3, 4, 5, 6, 7, 8];
-    let mut rows: Vec<serde_json::Value> = Vec::with_capacity(limit);
-
-    for i in 0..limit {
-        let idx = if desc { i } else { limit - 1 - i };
-        let ts = now_ms - (idx as i64 * 15000);
-        let et = event_types[idx as usize % 8];
-        let status = if idx % 7 == 0 { 403 } else { 200 };
-        rows.push(serde_json::json!({
-            "id": 1042u64 + idx as u64,
-            "timestamp": ts,
-            "user_id": (idx % 5 + 1) * 7,
-            "session_id": 1000 + idx,
-            "event_type": et,
-            "lock_id": (idx % 3) * 10,
-            "zone": (idx % 5 + 1),
-            "region": 1,
-            "status_code": status,
-            "ip_address": 0x7F000001i64,
-            "parent_event_id": 0i64,
-            "error_msg": if status == 403 { Some("权限不足") } else { None },
-            "metadata_json": None::<String>,
-        }));
+    // CREATE TABLE
+    else if sql_upper.starts_with("CREATE TABLE ") {
+        match parse_create_table(&sql) {
+            Ok((name, columns)) => match db.create_table(&name, columns) {
+                Ok(()) => Ok(Json(QueryResponse { columns: vec!["result".into()], rows: vec![serde_json::json!({"result": format!("表 '{}' 已创建 ({} 列)", name, db.get_table(&name).unwrap().columns.len())})], elapsed_ms: elapsed() })),
+                Err(e) => Err((StatusCode::BAD_REQUEST, e)),
+            },
+            Err(e) => Err((StatusCode::BAD_REQUEST, e)),
+        }
     }
+    // INSERT
+    else if sql_upper.starts_with("INSERT INTO ") {
+        match parse_insert(&sql) {
+            Ok((tbl_name, values)) => {
+                let tbl = db.get_table_mut(&tbl_name).ok_or_else(|| (StatusCode::BAD_REQUEST, format!("表 '{}' 不存在", tbl_name)))?;
+                match tbl.insert(values) {
+                    Ok(()) => Ok(Json(QueryResponse { columns: vec!["result".into()], rows: vec![serde_json::json!({"result": "INSERT 1"})], elapsed_ms: elapsed() })),
+                    Err(e) => Err((StatusCode::BAD_REQUEST, e)),
+                }
+            }
+            Err(e) => Err((StatusCode::BAD_REQUEST, e)),
+        }
+    }
+    // SELECT
+    else if sql_upper.starts_with("SELECT ") || sql_upper.starts_with("SELECT*") {
+        let tbl_name = extract_table(&sql_upper).unwrap_or_else(|| "events".into());
+        let tbl_name = tbl_name.trim_matches('"');
+        let limit = extract_limit(&sql_upper).unwrap_or(100).min(1000);
+        let desc = sql_upper.contains("DESC");
 
-    let elapsed = t0.elapsed().as_secs_f64() * 1000.0;
-    Ok(Json(QueryResponse {
-        columns: vec!["id","timestamp","user_id","session_id","event_type","lock_id","zone","region","status_code","ip_address","parent_event_id","error_msg","metadata_json"].into_iter().map(String::from).collect(),
-        rows,
-        elapsed_ms: elapsed,
-    }))
+        match db.get_table(tbl_name) {
+            Some(tbl) => {
+                let rows: Vec<_> = tbl.select(limit, desc);
+                let columns: Vec<String> = tbl.columns.iter().map(|c| c.name.clone()).collect();
+                Ok(Json(QueryResponse { columns, rows: rows.into_iter().map(|r| {
+                    let mut m = serde_json::Map::new();
+                    for (k, v) in r { m.insert(k, v); }
+                    serde_json::Value::Object(m)
+                }).collect(), elapsed_ms: elapsed() }))
+            }
+            None => {
+                let suggestion = sql.replacen(tbl_name, "events", 1);
+                Ok(Json(QueryResponse {
+                    columns: vec!["error".into(), "suggestion".into()],
+                    rows: vec![serde_json::json!({"error": format!("表 '{}' 不存在", tbl_name), "suggestion": suggestion})],
+                    elapsed_ms: elapsed(),
+                }))
+            }
+        }
+    }
+    else {
+        Err((StatusCode::BAD_REQUEST, format!("不支持的操作: {}", sql)))
+    }
 }
+
+async fn snapshots_handler(State(_state): State<Arc<ApiState>>) -> Json<Vec<String>> { Json(vec![]) }
+
+// ----- SQL parser helpers -----
 
 fn extract_table(sql: &str) -> Option<String> {
     let from_idx = sql.find("FROM ")?;
-    let after_from = &sql[from_idx + 5..].trim();
-    let table = after_from.split_whitespace().next()?.trim_matches('"').trim_matches(';');
-    Some(table.to_string())
+    let after = &sql[from_idx + 5..].trim();
+    Some(after.split_whitespace().next()?.trim_matches('"').trim_matches(';').to_string())
 }
 
 fn extract_limit(sql: &str) -> Option<usize> {
-    let limit_idx = sql.rfind("LIMIT ")?;
-    let after_limit = &sql[limit_idx + 6..].trim();
-    after_limit.split_whitespace().next()?.trim_matches(';').parse().ok()
+    let idx = sql.rfind("LIMIT ")?;
+    sql[idx + 6..].trim().split_whitespace().next()?.trim_matches(';').parse().ok()
 }
 
-/// GET /api/snapshots
-async fn snapshots_handler(
-    State(_state): State<Arc<ApiState>>,
-) -> Json<Vec<String>> {
-    Json(vec![])
+fn parse_create_table(sql: &str) -> Result<(String, Vec<ColumnDef>), String> {
+    // CREATE TABLE name (col1 TYPE, col2 TYPE, ...)
+    let rest = sql.trim()
+        .trim_start_matches("CREATE ").trim_start_matches("create ")
+        .trim_start_matches("TABLE ").trim_start_matches("table ")
+        .trim();
+    let lp = rest.find('(').ok_or("缺少 '('")?;
+    let name = rest[..lp].trim().trim_matches('"').to_string();
+    let rp = rest.rfind(')').ok_or("缺少 ')'")?;
+    let cols_str = &rest[lp+1..rp];
+    let mut columns = Vec::new();
+    for col_str in cols_str.split(',') {
+        let parts: Vec<&str> = col_str.trim().split_whitespace().collect();
+        if parts.len() < 2 { continue; }
+        columns.push(ColumnDef {
+            name: parts[0].trim_matches('"').to_string(),
+            col_type: parts[1].to_uppercase(),
+            nullable: !col_str.to_uppercase().contains("NOT NULL"),
+        });
+    }
+    if columns.is_empty() { return Err("至少需要一列".into()); }
+    Ok((name, columns))
+}
+
+fn parse_insert(sql: &str) -> Result<(String, Vec<serde_json::Value>), String> {
+    // INSERT INTO name (cols) VALUES (vals)
+    let rest = sql.trim()
+        .trim_start_matches("INSERT ").trim_start_matches("insert ")
+        .trim_start_matches("INTO ").trim_start_matches("into ")
+        .trim();
+    let name_end = rest.find(|c: char| c == ' ' || c == '(').unwrap_or(rest.len());
+    let name = rest[..name_end].trim().trim_matches('"').to_string();
+    let after_name = rest[name_end..].trim();
+
+    // Find VALUES (...)
+    let val_idx = after_name.to_uppercase().find("VALUES").ok_or("缺少 VALUES")?;
+    let val_str = after_name[val_idx + 6..].trim();
+    let lp = val_str.find('(').ok_or("缺少 '('")?;
+    let rp = val_str.rfind(')').ok_or("缺少 ')'")?;
+    let vals: Vec<serde_json::Value> = val_str[lp+1..rp]
+        .split(',')
+        .map(|v| {
+            let v = v.trim().trim_matches('\'');
+            // Try parse as number, else string
+            if let Ok(n) = v.parse::<i64>() {
+                serde_json::json!(n)
+            } else if let Ok(f) = v.parse::<f64>() {
+                serde_json::json!(f)
+            } else if v.eq_ignore_ascii_case("NULL") {
+                serde_json::Value::Null
+            } else {
+                serde_json::json!(v)
+            }
+        })
+        .collect();
+
+    Ok((name, vals))
 }

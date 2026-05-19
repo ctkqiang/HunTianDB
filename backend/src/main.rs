@@ -43,9 +43,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    // 初始化内存数据库引擎
+    let db = Arc::new(parking_lot::RwLock::new(
+        huntiandb::server::database::Database::new()
+    ));
+    tracing::info!("数据库引擎已初始化");
+
     // 启动 REST API（后台任务）
     let api_state = Arc::new(huntiandb::server::rest_handler::ApiState {
         config: Arc::new(config.clone()),
+        db,
     });
     let api_router = huntiandb::server::rest_handler::build_router(api_state);
 
