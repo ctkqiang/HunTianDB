@@ -28,6 +28,7 @@ pub struct PostgresProtocol {
     authenticated: bool,
     username: Option<String>,
     database: Option<String>,
+    prepared_sql: Option<String>,
 }
 
 impl PostgresProtocol {
@@ -39,6 +40,7 @@ impl PostgresProtocol {
             authenticated: false,
             username: None,
             database: None,
+            prepared_sql: None,
         }
     }
 
@@ -87,12 +89,13 @@ impl PostgresProtocol {
                             let query = self.read_simple_query().await?;
                             self.handle_query(&query.query_string).await?;
                         }
-                        b'X' => break, // Terminate
-                        // Extended Query Protocol — 跳过并响应
-                        b'P' | b'B' | b'D' | b'E' | b'S' | b'H' | b'C' | b'f' | b'F' => {
-                            self.skip_message().await?;
-                            self.send_ready_for_query().await?;
-                        }
+                        b'X' => break,
+                        b'P' => { let sql = self.read_parse().await?; self.send_parse_complete().await?; self.prepared_sql = Some(sql); }
+                        b'B' => { self.skip_message().await?; self.send_bind_complete().await?; }
+                        b'D' => { let sql = self.prepared_sql.clone(); self.skip_message().await?; if let Some(ref s) = sql { self.handle_simple_response(s).await?; } }
+                        b'E' => { let sql = self.prepared_sql.clone(); self.skip_message().await?; if let Some(ref s) = sql { self.handle_query(s).await?; } }
+                        b'S' => { self.skip_message().await?; self.send_ready_for_query().await?; }
+                        b'H' | b'C' | b'f' | b'F' => { self.skip_message().await?; }
                         _ => { self.skip_message().await?; }
                     }
                 }
@@ -271,10 +274,21 @@ impl PostgresProtocol {
             self.send_row_desc("current_schemas").await?;
             self.send_data_row("{public}").await?;
             self.send_command_complete("SELECT", 1).await?;
-        } else if sql_upper.contains("PG_TABLES") || sql_upper.contains("INFORMATION_SCHEMA") {
+        } else if sql_upper.contains("PG_TABLES") || sql_upper.contains("INFORMATION_SCHEMA.TABLES") {
             self.send_row_desc("table_name").await?;
             self.send_data_row("events").await?;
             self.send_command_complete("SELECT", 1).await?;
+        } else if sql_upper.contains("PG_NAMESPACE") {
+            self.send_row_desc("nspname").await?;
+            self.send_data_row("public").await?;
+            self.send_command_complete("SELECT", 1).await?;
+        } else if sql_upper.contains("PG_TYPE") {
+            self.send_row_desc("typname").await?;
+            self.send_data_row("text").await?;
+            self.send_command_complete("SELECT", 1).await?;
+        } else if sql_upper.contains("PG_CLASS") || sql_upper.contains("PG_ATTRIBUTE") {
+            self.send_empty_result().await?;
+            self.send_command_complete("SELECT", 0).await?;
         } else if sql_upper.starts_with("SELECT") {
             self.send_empty_result().await?;
             self.send_command_complete("SELECT", 0).await?;
@@ -321,6 +335,43 @@ impl PostgresProtocol {
         packet.extend_from_slice(&payload);
 
         self.stream.write_all(&packet).await?;
+        Ok(())
+    }
+
+    // 读取 Parse 消息中的 SQL 文本
+    async fn read_parse(&mut self) -> HunTianResult<String> {
+        self.read_exact(4).await?; let _len = self.buffer.get_i32();
+        let name = self.read_null_terminated_string(); // statement name (ignored)
+        let sql = self.read_null_terminated_string();   // the SQL
+        // skip parameter types (2 bytes count + N*4 bytes OIDs)
+        self.read_exact(2).await?; let n = self.buffer.get_i16();
+        if n > 0 { self.read_exact(n as usize * 4).await?; self.buffer.clear(); }
+        tracing::info!("Parse: {}", sql);
+        Ok(sql)
+    }
+
+    // 发送 ParseComplete ('1')
+    async fn send_parse_complete(&mut self) -> HunTianResult<()> {
+        self.stream.write_all(&[b'1', 0, 0, 0, 4]).await?;
+        Ok(())
+    }
+
+    // 发送 BindComplete ('2')
+    async fn send_bind_complete(&mut self) -> HunTianResult<()> {
+        self.stream.write_all(&[b'2', 0, 0, 0, 4]).await?;
+        Ok(())
+    }
+
+    // 对 discovery 查询仅返回 RowDescription (不返回数据行)
+    async fn handle_simple_response(&mut self, sql: &str) -> HunTianResult<()> {
+        let s = sql.trim().to_uppercase();
+        if s.contains("CURRENT_DATABASE") || s.contains("VERSION") || s.contains("CURRENT_SCHEMAS")
+            || s.contains("PG_TABLES") || s.contains("INFORMATION_SCHEMA") || s.contains("PG_TYPE")
+            || s.contains("PG_NAMESPACE") || s.contains("PG_CLASS") || s.contains("PG_ATTRIBUTE") {
+            self.send_row_desc("result").await?;
+        } else {
+            self.send_empty_result().await?;
+        }
         Ok(())
     }
 
