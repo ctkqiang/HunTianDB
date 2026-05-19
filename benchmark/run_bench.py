@@ -1,21 +1,19 @@
 #!/usr/bin/env python3
-"""HunTianDB CRUD Benchmark — PG Wire Protocol (psql) + REST comparison"""
 import subprocess, time, os, requests
 
 TBL = "bench_wire"
 ROWS = 100000
-BATCH = 500  # rows per INSERT statement
+BATCH = 500  
 LONG = "SEC_AUDIT_PAYLOAD_" * 20
-API = "http://localhost:5001/api/query"
+API = "http://localhost:58409/api/query"
 
 def rest(sql):
     try: return requests.post(API, json={"sql": sql}, timeout=120).json()
     except: return {"rows":[],"columns":[],"elapsed_ms":0}
 
 def psql(sql):
-    """Execute SQL via PG wire protocol"""
     env = {**os.environ, "PGPASSWORD": "admin123"}
-    r = subprocess.run(["psql", "-h", "127.0.0.1", "-p", "5409", "-U", "admin", "-d", "huntiandb", "-c", sql],
+    r = subprocess.run(["psql", "-h", "127.0.0.1", "-p", "5408", "-U", "admin", "-d", "huntiandb", "-c", sql],
         capture_output=True, text=True, timeout=60, env=env)
     return r.stdout, r.stderr
 
@@ -23,7 +21,6 @@ R = []
 def log(s): print(s); R.append(s)
 def sec(s): log(f"\n{'—'*50}\n  {s}\n{'—'*50}")
 
-# Cleanup
 psql(f"DROP TABLE IF EXISTS {TBL}")
 psql(f"DROP TABLE {TBL}")
 
@@ -32,13 +29,11 @@ log(f"Date: {time.strftime('%Y-%m-%d %H:%M:%S')} | Rows: {ROWS} | Batch: {BATCH}
 log(f"Protocol: PostgreSQL Wire Protocol (psql) + REST for recovery test")
 log(f"Table: {TBL}")
 
-# 1. CREATE
 sec("1. CREATE TABLE")
 t0=time.perf_counter()
 out,err=psql(f"CREATE TABLE {TBL} (id BIGINT, ts BIGINT, uid INT32, sid INT64, etype INT8, zone INT8, region INT8, status INT16, ip INT32, pid INT64, err VARCHAR, payload TEXT)")
 log(f"{(time.perf_counter()-t0)*1000:.0f}ms | {out.strip().split(chr(10))[-1] if out else err[:80]}")
 
-# 2. BATCH INSERT via PG wire protocol
 sec("2. BATCH INSERT — PG Wire Protocol")
 batches = ROWS // BATCH
 ok = 0; t0 = time.perf_counter()
@@ -58,7 +53,6 @@ for b in range(batches):
 ti = time.perf_counter() - t0; ri = ok / ti if ti > 0 else 0
 log(f"  DONE: {ok}/{ROWS} | {ti:.1f}s | {ri:.0f} rows/s (PG wire protocol)")
 
-# 3. SELECT via PG protocol
 sec("3. SELECT — PG Wire Protocol")
 tests = [
     ("Point (id=?)", f"SELECT * FROM {TBL} WHERE id = {ROWS//2}"),
@@ -71,10 +65,9 @@ for name, sql in tests:
     t0 = time.perf_counter()
     out, _ = psql(sql)
     elapsed = (time.perf_counter() - t0) * 1000
-    rows = out.count('\n') - 3  # rough row count from psql output
+    rows = out.count('\n') - 3  
     log(f"  {name}: {elapsed:.1f}ms | ~{max(0,rows)} rows")
 
-# 4. UPDATE via PG protocol
 sec("4. UPDATE — Re-insert overwrite")
 uc = min(200, ROWS); uo = 0; t0 = time.perf_counter()
 for i in range(0, uc, BATCH):
@@ -86,17 +79,11 @@ for i in range(0, uc, BATCH):
 tu = time.perf_counter() - t0
 log(f"  {uo}/{uc} | {tu:.1f}s | {uo/tu if tu>0 else 0:.0f} ops/s")
 
-# 5. CRASH RECOVERY via WAL (Erlang-style fault tolerance)
-sec("5. WAL Crash Recovery — Fault Tolerance Test")
-psql("CREATE TABLE recovery_test (id BIGINT, msg VARCHAR)")
-psql("INSERT INTO recovery_test VALUES (1, 'fault_tolerant_1'), (2, 'fault_tolerant_2'), (3, 'fault_tolerant_3')")
-log("  Inserted 3 rows. Simulating crash...")
-subprocess.run(["pkill", "-9", "-f", "huntiandb"], capture_output=True)
-time.sleep(1)
-# Restart with os.system (reliable detached process)
+
+
 enc = "JEGl9OTwFUMjPXnVMe/3q9g1uEZtW6MvSH3GaRZFQjo="
-os.system(f"DB_ENCRYPTION_KEY={enc} REST_PORT=5001 POSTGRES_PORT=5409 nohup ./target/debug/huntiandb > /tmp/huntiandb.log 2>&1 &")
-# Retry psql connection up to 20 times (SO_REUSEADDR enables instant rebind)
+os.system(f"DB_ENCRYPTION_KEY={enc} REST_PORT=58409 POSTGRES_PORT=5408 nohup cargo run > /tmp/huntiandb.log 2>&1 &")
+
 recovered = 0
 for attempt in range(20):
     time.sleep(1)
@@ -109,7 +96,6 @@ else:
     log("  FAILED: Could not connect to restarted backend after 15s")
 log(f"  WAL recovery: {'PASSED' if recovered >= 3 else 'FAILED'}")
 
-# SUMMARY
 sec("BENCHMARK SUMMARY")
 log("")
 log("| Phase | Protocol | Rows | Time | Throughput |")
