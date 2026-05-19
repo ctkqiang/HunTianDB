@@ -3,7 +3,7 @@ import { Input, Button, MessagePlugin, Divider } from "tdesign-react";
 import { LockOnIcon, UserIcon } from "tdesign-icons-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserStore } from "@/store/userStore";
-import { useT } from "@/i18n/context";
+import { useT } from "@/i18n/useT";
 
 export function LoginPage() {
   const [username, setUsername] = useState("");

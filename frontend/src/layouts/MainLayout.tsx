@@ -2,7 +2,7 @@ import { type ReactNode } from "react";
 import { Layout, Menu, Dropdown, Button, Space, Badge, Avatar, Radio } from "tdesign-react";
 import { DashboardIcon, ServerIcon, SearchIcon, SettingIcon, LogoutIcon, UserIcon, MenuFoldIcon, MenuUnfoldIcon, SunnyIcon, MoonIcon } from "tdesign-icons-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useT } from "@/i18n/context";
+import { useT } from "@/i18n/useT";
 import { useUIStore } from "@/store/uiStore";
 
 const { Header, Aside, Content } = Layout;

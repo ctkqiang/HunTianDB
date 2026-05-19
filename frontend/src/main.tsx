@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider } from "tdesign-react";
-import { I18nProvider } from "@/i18n/context";
+import I18nProvider from "@/i18n/context";
 import App from "@/App";
 import { useUIStore, type ThemeMode } from "@/store/uiStore";
 import "tdesign-react/es/style/index.css";

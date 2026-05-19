@@ -2,7 +2,7 @@ import { Card, Row, Col, Tag } from "tdesign-react";
 import { ChartLineIcon, ServerIcon, TimeIcon, SecuredIcon, ThunderIcon } from "tdesign-icons-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useEvents } from "@/hooks/useEvents";
-import { useT } from "@/i18n/context";
+import { useT } from "@/i18n/useT";
 
 const mockThroughput = [
   { time: "14:00", eps: 850000 }, { time: "14:05", eps: 920000 }, { time: "14:10", eps: 880000 },
