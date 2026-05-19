@@ -25,10 +25,7 @@ export function MainLayout({ children }: { children?: ReactNode }) {
         background: "var(--td-bg-color-container)", flexShrink: 0,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-            background: "linear-gradient(135deg, #7C3AED, #A855F7)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#fff", fontWeight: 800, fontSize: 15 }}>混</div>
+          <img src="/logo.png" alt="HunTianDB" style={{width:32,height:32,borderRadius:8,flexShrink:0}}/>
           <span style={{ fontWeight: 700, fontSize: 15 }}>{t("app_name")}</span>
         </div>
 

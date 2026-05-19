@@ -24,7 +24,7 @@ export function LoginPage() {
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #0a0818 0%, #151030 50%, #0d1424 100%)" }}>
       <div style={{ width: 380 }}>
         <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: "linear-gradient(135deg, #7C3AED, #A855F7)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 800, color: "#fff", boxShadow: "0 6px 20px rgba(124,58,237,0.3)" }}>混</div>
+          <img src="/logo.png" alt="HunTianDB" style={{width:56,height:56,borderRadius:12,boxShadow:"0 6px 20px rgba(0,0,0,0.3)"}}/>
           <h1 style={{ color: "#fff", fontSize: 20, fontWeight: 700, margin: "10px 0 0" }}>{t("app_name")}</h1>
           <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, marginTop: 2 }}>{t("app_desc")}</p>
         </div>

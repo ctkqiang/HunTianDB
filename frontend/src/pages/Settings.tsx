@@ -33,11 +33,11 @@ export function Settings() {
         <Col span={8}>
           <Card bordered title={t("about")}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 9, background: "var(--td-brand-color)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 18 }}>混</div>
+              <img src="/logo.png" alt="HunTianDB" style={{width:40,height:40,borderRadius:8}}/>
               <div><div style={{ fontWeight: 700, fontSize: 15 }}>{t("app_name")}</div><div style={{ fontSize: 11, color: "var(--td-text-color-placeholder)" }}>{t("app_desc")}</div></div>
             </div>
             <Divider style={{ margin: "8px 0" }} />
-            {[[t("author"), "钟智强", <UserIcon />], [t("email"), "ctkqiang@dingtalk.com", <MailIcon />], [t("repo"), "gitcode.com/ctkqiang_sr/HunTianDB", <CodeIcon />]].map(([k, v, i]) => (
+            {[[t("author"), "钟智强 ctkqiang", <UserIcon />], [t("email"), "ctkqiang@dingtalk.com", <MailIcon />], [t("repo"), "gitcode.com/ctkqiang_sr/HunTianDB", <CodeIcon />]].map(([k, v, i]) => (
               <div key={k as string} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 12 }}><span style={{ color: "var(--td-brand-color)" }}>{i as any}</span><span style={{ color: "var(--td-text-color-placeholder)" }}>{k}:</span><span>{v}</span></div>
             ))}
           </Card>
