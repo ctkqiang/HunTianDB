@@ -1,172 +1,112 @@
 import { useState, useCallback, useEffect } from "react";
-import { Card, Button, Space, Table, Tag, MessagePlugin, Divider, Textarea, Row, Col, Loading } from "tdesign-react";
-import { PlayCircleIcon, ClearIcon, HistoryIcon, BrowseIcon, RefreshIcon, ChevronRightIcon } from "tdesign-icons-react";
+import { Card, Button, Space, Table, Tag, MessagePlugin, Textarea } from "tdesign-react";
+import { PlayCircleIcon, ClearIcon, RefreshIcon } from "tdesign-icons-react";
 import { queryEvents } from "@/api/events";
 import type { QueryResponse } from "@/types/api";
 
-const SAMPLE = "SELECT * FROM events ORDER BY timestamp DESC LIMIT 100;";
+const DEFAULT = "SELECT * FROM events ORDER BY timestamp DESC LIMIT 100;";
 
 export function QueryBuilder() {
-  const [sql, setSql] = useState(() => String(localStorage.getItem("hunt_sql") || SAMPLE));
+  const [sql, setSql] = useState(() => String(localStorage.getItem("hunt_sql") || DEFAULT));
   const [result, setResult] = useState<QueryResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<string | null>(null);
-  const [elapsed, setElapsed] = useState<number | null>(null);
+  const [tables, setTables] = useState<{ name: string; cols: number; rows: number }[]>([]);
   const [history, setHistory] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem("hunt_sql_history") || "[]"); } catch { return []; } });
-  const [tables, setTables] = useState<{ name: string; columns: number; rows: number }[]>([]);
-  const [sidebarTab, setSidebarTab] = useState<"tables" | "history">("tables");
+  const [elapsed, setElapsed] = useState(0);
 
-  // 加载表列表
   const loadTables = useCallback(async () => {
-    try {
-      const res = await queryEvents({ sql: "SHOW TABLES" });
-      if (res.columns.includes("table_name")) {
-        setTables(res.rows.map((r: any) => ({ name: r.table_name, columns: r.columns, rows: r.rows })));
-      }
-    } catch {}
+    try { const r = await queryEvents({ sql: "SHOW TABLES" }); if (r.columns.includes("table_name")) setTables(r.rows.map((x: any) => ({ name: x.table_name, cols: x.columns, rows: x.rows }))); } catch {}
   }, []);
 
   useEffect(() => { loadTables(); }, [loadTables]);
 
-  const executeQuery = useCallback(async (querySql?: string | null) => {
+  const execute = useCallback(async (querySql?: string | null) => {
     const raw = typeof querySql === "string" ? querySql : sql;
-    const trimmed = (raw ?? "").trim();
-    if (!trimmed) return;
+    const q = (raw ?? "").trim();
+    if (!q) return;
     setLoading(true); setError(null); setSuggestion(null);
     if (typeof querySql === "string") setSql(querySql);
+    const t0 = performance.now();
     try {
-      const res = await queryEvents({ sql: trimmed });
+      const res = await queryEvents({ sql: q });
+      setElapsed(performance.now() - t0);
       if (res.columns.includes("suggestion") && res.rows.length === 1) {
         const row = res.rows[0] as any;
-        setError(row.error); setSuggestion(row.suggestion || null);
+        setError(row.error); setSuggestion(row.suggestion ?? null);
       } else {
-        setResult(res); setElapsed(res.elapsedMs);
-        if (trimmed.toUpperCase().includes("SHOW TABLES")) loadTables();
-        localStorage.setItem("hunt_sql", trimmed);
-        setHistory((prev) => { const next = [trimmed, ...prev.filter((h) => h !== trimmed)].slice(0, 20); localStorage.setItem("hunt_sql_history", JSON.stringify(next)); return next; });
+        setResult(res);
+        if (q.toUpperCase().includes("SHOW TABLES")) loadTables();
+        localStorage.setItem("hunt_sql", q);
+        setHistory((prev) => { const n = [q, ...prev.filter((h) => h !== q)].slice(0, 20); localStorage.setItem("hunt_sql_history", JSON.stringify(n)); return n; });
       }
     } catch (err: any) {
-      setError(err?.response?.data?.error || err?.message || "查询失败");
+      setError(err?.response?.data?.error ?? err?.message ?? "查询失败");
     } finally { setLoading(false); }
   }, [sql, loadTables]);
 
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") executeQuery(); };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [executeQuery]);
+    const h = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") execute(); };
+    window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h);
+  }, [execute]);
 
-  const tabClick = (name: string) => executeQuery(`SELECT * FROM ${name} LIMIT 30`);
+  const cols = result?.columns?.filter((c) => c !== "suggestion").map((c) => ({
+    colKey: c, title: c, width: Math.max(c.length * 11 + 32, 90), ellipsis: true,
+    cell: ({ row }: any) => row[c] === null || row[c] === undefined ? <Tag size="small" variant="light" theme="default">NULL</Tag> : <span style={{ fontFamily: "monospace", fontSize: 12 }}>{String(row[c])}</span>,
+  })) ?? [];
 
-  const resultColumns = result?.columns?.filter((c) => c !== "suggestion").map((col) => ({
-    colKey: col, title: col, width: Math.max(col.length * 12 + 40, 100), ellipsis: true,
-    cell: ({ row }: any) => {
-      const v = row[col];
-      if (v === null || v === undefined) return <Tag size="small" variant="light" theme="default">NULL</Tag>;
-      return <span style={{ fontFamily: "monospace", fontSize: 12 }}>{String(v)}</span>;
-    },
-  })) || [];
+  const isDataResult = result && !result.columns.includes("suggestion") && !result.columns.includes("result") && !result.columns.includes("error");
 
   return (
     <div style={{ display: "flex", gap: 16, height: "calc(100vh - 92px)" }}>
-      {/* 左侧面板 */}
-      <div style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ display: "flex", gap: 0, background: "var(--td-bg-color-component)", borderRadius: 8, padding: 2 }}>
-          {(["tables", "history"] as const).map((tab) => (
-            <Button key={tab} size="small" variant={sidebarTab === tab ? "base" : "text"} style={{ flex: 1, fontSize: 12 }} onClick={() => setSidebarTab(tab)}>
-              {tab === "tables" ? "表" : "历史"}
-            </Button>
-          ))}
-        </div>
-
+      {/* Left panel */}
+      <div style={{ width: 210, flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, padding: "0 4px" }}>表</div>
         <div style={{ flex: 1, overflow: "auto", background: "var(--td-bg-color-container)", borderRadius: 8, border: "1px solid var(--td-component-stroke)", padding: 4 }}>
-          {sidebarTab === "tables" ? (
-            tables.length === 0 ? (
-              <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "var(--td-text-color-placeholder)" }}>
-                运行 SHOW TABLES 加载
-                <Button size="small" variant="text" icon={<RefreshIcon />} onClick={loadTables} style={{ marginTop: 8 }}>刷新</Button>
+          {tables.length === 0 ? <div style={{ padding: 16, textAlign: "center", fontSize: 12, color: "var(--td-text-color-placeholder)" }}>暂无表</div> :
+            tables.map((t) => (
+              <div key={t.name} onClick={() => execute(`SELECT * FROM ${t.name} LIMIT 30`)} style={{ cursor: "pointer", padding: "6px 8px", borderRadius: 4, display: "flex", justifyContent: "space-between", fontSize: 12 }}
+                onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = "var(--td-bg-color-component)"}
+                onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                <span style={{ fontFamily: "monospace", fontWeight: 500 }}>{t.name}</span><span style={{ color: "var(--td-text-color-placeholder)", fontSize: 10 }}>{t.rows ?? 0}</span>
               </div>
-            ) : (
-              tables.map((t) => (
-                <div key={t.name}
-                  onClick={() => tabClick(t.name)}
-                  style={{ cursor: "pointer", padding: "8px 10px", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 13, marginBottom: 2 }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--td-bg-color-component)"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-                >
-                  <span style={{ fontFamily: "monospace", fontWeight: 500 }}>{t.name}</span>
-                  <span style={{ fontSize: 10, color: "var(--td-text-color-placeholder)" }}>{t.rows ?? "0"}</span>
-                </div>
-              ))
-            )
-          ) : (
-            history.length === 0 ? (
-              <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "var(--td-text-color-placeholder)" }}>暂无查询历史</div>
-            ) : (
-              history.slice(0, 30).map((h, i) => (
-                <div key={i}
-                  onClick={() => setSql(h)}
-                  style={{ cursor: "pointer", padding: "6px 8px", borderRadius: 4, fontSize: 11, fontFamily: "monospace", color: "var(--td-text-color-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--td-bg-color-component)"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-                  title={h}
-                >{h.replace(/\n/g, " ").slice(0, 50)}</div>
-              ))
-            )
-          )}
+            ))}
         </div>
-
-        <Button block variant="outline" icon={<RefreshIcon />} size="small" onClick={loadTables}>刷新表列表</Button>
+        <Button block variant="outline" size="small" icon={<RefreshIcon />} onClick={loadTables}>刷新</Button>
+        <div style={{ fontSize: 12, fontWeight: 600, padding: "0 4px", marginTop: 8 }}>历史</div>
+        <div style={{ flex: 1, overflow: "auto", background: "var(--td-bg-color-container)", borderRadius: 8, border: "1px solid var(--td-component-stroke)", padding: 4, maxHeight: 200 }}>
+          {history.length === 0 ? <div style={{ padding: 16, textAlign: "center", fontSize: 12, color: "var(--td-text-color-placeholder)" }}>暂无</div> :
+            history.map((h, i) => (
+              <div key={i} onClick={() => setSql(h)} style={{ cursor: "pointer", padding: "4px 6px", borderRadius: 3, fontSize: 10, fontFamily: "monospace", color: "var(--td-text-color-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={h}
+                onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = "var(--td-bg-color-component)"}
+                onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = "transparent"}>{h.replace(/\n/g, " ").slice(0, 55)}</div>
+            ))}
+        </div>
       </div>
 
-      {/* 主编辑区 */}
+      {/* Right: editor + results */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
         <Card bordered style={{ flexShrink: 0 }}>
-          <Textarea
-            value={String(sql ?? "")}
-            onChange={(v) => { setSql(String(v ?? "")); setError(null); }}
-            placeholder="输入 SQL 语句...  (Ctrl+Enter 执行)"
-            autosize={{ minRows: 5, maxRows: 12 }}
-            style={{ fontFamily: "'JetBrains Mono', 'Fira Code', monospace", fontSize: 13, lineHeight: 1.6 }}
-          />
-
-          {error && (
-            <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 6, background: "var(--td-warning-color-1)", border: "1px solid var(--td-warning-color-3)", fontSize: 12 }}>
-              {error}
-              {suggestion && (
-                <span>. <span onClick={() => executeQuery(suggestion)} style={{ cursor: "pointer", color: "var(--td-brand-color)", fontWeight: 600, fontFamily: "monospace" }}>Execute: {suggestion}</span></span>
-              )}
-            </div>
-          )}
-
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+          <Textarea value={String(sql ?? "")} onChange={(v) => { setSql(String(v ?? "")); setError(null); }} placeholder="SQL ... Ctrl+Enter" autosize={{ minRows: 5, maxRows: 12 }} style={{ fontFamily: "monospace", fontSize: 13, lineHeight: 1.6 }} />
+          {error && <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 6, background: "var(--td-warning-color-1)", border: "1px solid var(--td-warning-color-3)", fontSize: 12 }}>{error}{suggestion ? <span> · <span onClick={() => execute(suggestion)} style={{ cursor: "pointer", color: "var(--td-brand-color)", fontWeight: 600, fontFamily: "monospace" }}>{suggestion}</span></span> : null}</div>}
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10 }}>
             <Space>
-              <Button theme="primary" icon={<PlayCircleIcon />} loading={loading} onClick={() => executeQuery()}>执行 Ctrl+Enter</Button>
+              <Button theme="primary" icon={<PlayCircleIcon />} loading={loading} onClick={() => execute()}>执行</Button>
               <Button variant="outline" icon={<ClearIcon />} onClick={() => { setSql(""); setResult(null); setError(null); }}>清除</Button>
-              <Button variant="text" size="small" onClick={() => executeQuery("SHOW TABLES")}>SHOW TABLES</Button>
+              <Button variant="text" size="small" onClick={() => execute("SHOW TABLES")}>SHOW TABLES</Button>
             </Space>
-            {result && !result.columns.includes("suggestion") && (
-              <Tag theme="success" variant="light">{result.rows.length} rows · {(elapsed ?? 0).toFixed(1)}ms</Tag>
-            )}
+            {isDataResult && <Tag theme="success" variant="light">{result.rows.length} 行 · {elapsed.toFixed(1)}ms</Tag>}
           </div>
         </Card>
 
-        {/* 结果表 */}
-        {result && !result.columns.includes("error") && !result.columns.includes("result") && (
-          <Card bordered title={`结果 · ${result.columns.length} 列`} style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
-            <Table data={result.rows} columns={resultColumns} rowKey={(_: any, i: number) => String(i)} maxHeight={400} bordered stripe hover size="small" empty="0 行" pagination={{ defaultPageSize: 50, pageSizeOptions: [20, 50, 100, 200], showJumper: true }} />
-          </Card>
+        {result && result.columns.includes("result") && !result.columns.includes("suggestion") && (
+          <Card bordered>{result.rows.map((r: any, i: number) => <div key={i} style={{ fontSize: 13, color: r.error ? "var(--td-error-color)" : "var(--td-success-color)" }}>{r.result ?? r.error}</div>)}</Card>
         )}
 
-        {/* DDL结果消息 */}
-        {result && (result.columns.includes("result") || result.columns.includes("error")) && !result.columns.includes("suggestion") && (
-          <Card bordered>
-            {result.rows.map((row: any, i: number) => (
-              <div key={i} style={{ fontSize: 13, color: row.error ? "var(--td-error-color)" : "var(--td-success-color)" }}>
-                {row.result || row.error}
-              </div>
-            ))}
+        {isDataResult && (
+          <Card bordered title={`结果 · ${result.columns.length} 列`} style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
+            <Table data={result.rows} columns={cols} rowKey={(_: any, i: number) => String(i)} maxHeight={400} bordered stripe hover size="small" empty="0 行" pagination={{ defaultPageSize: 50, pageSizeOptions: [20, 50, 100], showJumper: true }} />
           </Card>
         )}
       </div>

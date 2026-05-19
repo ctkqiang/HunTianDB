@@ -2,40 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --td-radius-small: 6px;
-  --td-radius-medium: 10px;
-  --td-radius-large: 14px;
+:root,
+[theme-mode="light"] {
+  --td-brand-color: #7C3AED;
+  --td-brand-color-hover: #6D28D9;
+  --td-brand-color-active: #5B21B6;
+  --td-brand-color-light: #F5F3FF;
+  --td-radius-default: 6px;
+  --td-radius-medium: 8px;
+  --td-radius-large: 12px;
+}
+
+[theme-mode="dark"] {
+  --td-brand-color: #A78BFA;
+  --td-brand-color-hover: #C4B5FD;
+  --td-brand-color-active: #8B5CF6;
+  --td-brand-color-light: #1E1B4B;
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-#root {
-  min-height: 100vh;
-}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--td-scrollbar-color); border-radius: 3px; }
 
-/* Enterprise scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--td-scrollbar-color);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--td-text-color-placeholder);
-}
-
-/* Monaco / Code editor font */
-code, pre, .monaco-editor, textarea[style*="monospace"] {
+code, pre, textarea[style*="monospace"] {
   font-family: "JetBrains Mono", "Fira Code", "SF Mono", "Monaco", "Consolas", monospace !important;
 }

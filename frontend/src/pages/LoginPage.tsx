@@ -6,56 +6,36 @@ import { useUserStore } from "@/store/userStore";
 import { useT } from "@/i18n/useT";
 
 export function LoginPage() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
-  const directLogin = useUserStore((s) => s.login);
-  const { t } = useT();
+  const [u, setU] = useState(""); const [p, setP] = useState(""); const [loading, setLoading] = useState(false);
+  const { signIn } = useAuth(); const directLogin = useUserStore((s) => s.login); const { t } = useT();
 
-  const handleLogin = async () => {
-    if (!username || !password) { MessagePlugin.warning(t("enter_credentials")); return; }
+  const login = async () => {
+    if (!u || !p) { MessagePlugin.warning(t("enter_credentials")); return; }
     setLoading(true);
-    try {
-      await signIn({ username, password });
-      MessagePlugin.success(t("login_success"));
-    } catch {
-      if (username === "admin" && password === "admin123") {
-        directLogin({ id: "1", username: "admin", role: "admin", token: "dev-token" });
-        MessagePlugin.success(t("login_success"));
-      } else {
-        MessagePlugin.error(t("login_failed"));
-      }
-    } finally { setLoading(false); }
-  };
-
-  const skip = () => {
-    directLogin({ id: "1", username: "admin", role: "admin", token: "dev-token" });
+    try { await signIn({ username: u, password: p }); MessagePlugin.success(t("login_success")); }
+    catch {
+      if (u === "admin" && p === "admin123") { directLogin({ id: "1", username: "admin", role: "admin", token: "dev-token" }); MessagePlugin.success(t("login_success")); }
+      else { MessagePlugin.error(t("login_failed")); }
+    }
+    finally { setLoading(false); }
   };
 
   return (
-    <div style={{
-      minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
-      background: "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)",
-    }}>
-      <div style={{ width: 400, padding: 36 }}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ width: 52, height: 52, borderRadius: 14, background: "linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 26, fontWeight: 900, color: "#fff", marginBottom: 14, boxShadow: "0 8px 28px rgba(124,58,237,0.35)" }}>混</div>
-          <h1 style={{ color: "#fff", fontSize: 24, fontWeight: 700, margin: 0 }}>{t("app_name")}</h1>
-          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, marginTop: 4 }}>{t("app_desc")}</p>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #0a0818 0%, #151030 50%, #0d1424 100%)" }}>
+      <div style={{ width: 380 }}>
+        <div style={{ textAlign: "center", marginBottom: 28 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 10, background: "linear-gradient(135deg, #7C3AED, #A855F7)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 800, color: "#fff", boxShadow: "0 6px 20px rgba(124,58,237,0.3)" }}>混</div>
+          <h1 style={{ color: "#fff", fontSize: 20, fontWeight: 700, margin: "10px 0 0" }}>{t("app_name")}</h1>
+          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, marginTop: 2 }}>{t("app_desc")}</p>
         </div>
-
-        <div style={{ background: "rgba(255,255,255,0.05)", backdropFilter: "blur(16px)", borderRadius: 16, padding: 28, border: "1px solid rgba(255,255,255,0.08)" }}>
-          <Input value={username} onChange={(v) => setUsername(v as string)} placeholder={t("username") + " (admin)"} prefixIcon={<UserIcon />} size="large" style={{ marginBottom: 16, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, color: "#fff" }} />
-          <Input value={password} onChange={(v) => setPassword(v as string)} placeholder={t("password") + " (admin123)"} type="password" prefixIcon={<LockOnIcon />} size="large" onEnter={handleLogin} style={{ marginBottom: 22, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, color: "#fff" }} />
-          <Button block size="large" loading={loading} onClick={handleLogin} style={{ background: "linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)", border: "none", borderRadius: 10, height: 44, fontWeight: 600, fontSize: 15, boxShadow: "0 4px 14px rgba(124,58,237,0.25)" }}>{t("login")}</Button>
-          <Divider style={{ borderColor: "rgba(255,255,255,0.08)", margin: "18px 0" }} />
-          <Button block variant="outline" onClick={skip} style={{ borderColor: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.6)", borderRadius: 10, height: 38, fontSize: 13 }}>{t("skip_login")}</Button>
+        <div style={{ background: "rgba(255,255,255,0.035)", backdropFilter: "blur(12px)", borderRadius: 14, padding: 26, border: "1px solid rgba(255,255,255,0.05)" }}>
+          <Input value={u} onChange={(v) => setU(v as string)} placeholder={t("username")} prefixIcon={<UserIcon />} size="large" style={{ marginBottom: 12 }} />
+          <Input value={p} onChange={(v) => setP(v as string)} placeholder={t("password")} type="password" prefixIcon={<LockOnIcon />} size="large" onEnter={login} style={{ marginBottom: 18 }} />
+          <Button block size="large" loading={loading} onClick={login} style={{ height: 44, fontWeight: 600, fontSize: 15 }}>{t("login")}</Button>
+          <Divider style={{ margin: "14px 0", opacity: 0.15 }} />
+          <Button block variant="outline" onClick={() => directLogin({ id: "1", username: "admin", role: "admin", token: "dev-token" })}>{t("skip_login")}</Button>
         </div>
-
-        <p style={{ textAlign: "center", color: "rgba(255,255,255,0.18)", fontSize: 10, marginTop: 20 }}>
-          HunTianDB v1.0 &copy; 2026 钟智强
-        </p>
+        <p style={{ textAlign: "center", color: "rgba(255,255,255,0.12)", fontSize: 10, marginTop: 18 }}>HunTianDB v1.0</p>
       </div>
     </div>
   );

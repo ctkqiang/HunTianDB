@@ -19,14 +19,14 @@ export default function App() {
 
   if (!isAuth) return <LoginPage />;
 
-  const renderPage = () => {
+  const page = (() => {
     switch (path) {
       case "/events": return <EventViewer />;
       case "/query": return <QueryBuilder />;
       case "/settings": return <Settings />;
       default: return <Dashboard />;
     }
-  };
+  })();
 
-  return <MainLayout>{renderPage()}</MainLayout>;
+  return <MainLayout>{page}</MainLayout>;
 }

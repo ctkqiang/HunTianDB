@@ -8,32 +8,28 @@ import { useUIStore, type ThemeMode } from "@/store/uiStore";
 import "tdesign-react/es/style/index.css";
 import "@/styles/globals.css";
 
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
-});
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } });
 
 function ThemedApp() {
   const theme = useUIStore((s) => s.theme);
   const [resolved, setResolved] = useState<"light" | "dark">("light");
 
   useEffect(() => {
-    const resolveTheme = (mode: ThemeMode): "light" | "dark" => {
-      if (mode === "auto") return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      return mode;
+    const resolve = (m: ThemeMode): "light" | "dark" => {
+      if (m === "auto") return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      return m;
     };
-    const update = () => setResolved(resolveTheme(theme));
+    const update = () => setResolved(resolve(theme));
     update();
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
   }, [theme]);
 
-  useEffect(() => {
-    document.documentElement.setAttribute("theme-mode", resolved);
-  }, [resolved]);
+  useEffect(() => { document.documentElement.setAttribute("theme-mode", resolved); }, [resolved]);
 
   return (
-    <ConfigProvider globalConfig={{}}>
+    <ConfigProvider>
       <I18nProvider>
         <App />
       </I18nProvider>
