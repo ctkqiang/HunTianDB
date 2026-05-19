@@ -20,17 +20,16 @@ export function MainLayout({ children }: { children?: ReactNode }) {
       {/* ---- HEADER ---- */}
       <Header style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 20px", height: 48,
+        padding: "0 20px", height: 52,
         borderBottom: "1px solid var(--td-component-stroke)",
         background: "var(--td-bg-color-container)", flexShrink: 0,
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: 7, flexShrink: 0,
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Button variant="text" shape="square" size="small" icon={sidebarCollapsed?<MenuUnfoldIcon/>:<MenuFoldIcon/>} onClick={toggleSidebar}/>
+          <div style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0,
             background: "linear-gradient(135deg, #7C3AED, #A855F7)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#fff", fontWeight: 800, fontSize: 14,
-          }}>混</div>
+            color: "#fff", fontWeight: 800, fontSize: 15 }}>混</div>
           <span style={{ fontWeight: 700, fontSize: 15 }}>{t("app_name")}</span>
         </div>
 
@@ -60,9 +59,6 @@ export function MainLayout({ children }: { children?: ReactNode }) {
           background: "var(--td-bg-color-container)", flexShrink: 0,
           display: "flex", flexDirection: "column",
         }}>
-          <div style={{padding: sidebarCollapsed?0:"12px 16px 4px",display:"flex",alignItems:"center",gap:8}}>
-            {!sidebarCollapsed && <Button variant="text" shape="square" size="small" icon={sidebarCollapsed?<MenuUnfoldIcon/>:<MenuFoldIcon/>} onClick={toggleSidebar} style={{marginLeft:-4}}/>}
-          </div>
           <Menu value={path} collapsed={sidebarCollapsed} onChange={v=>nav(v as string)} style={{flex:1}}>
             {[
               ["/",<DashboardIcon/>,t("dashboard")],
