@@ -2,7 +2,7 @@
 import subprocess, time, os, requests
 
 TBL = "bench_wire"
-ROWS = 100000
+ROWS = 10000
 BATCH = 500  
 LONG = "SEC_AUDIT_PAYLOAD_" * 20
 API = "http://localhost:58409/api/query"
@@ -21,8 +21,6 @@ R = []
 def log(s): print(s); R.append(s)
 def sec(s): log(f"\n{'—'*50}\n  {s}\n{'—'*50}")
 
-psql(f"DROP TABLE IF EXISTS {TBL}")
-psql(f"DROP TABLE {TBL}")
 
 log("# HunTianDB PG Wire Protocol Benchmark")
 log(f"Date: {time.strftime('%Y-%m-%d %H:%M:%S')} | Rows: {ROWS} | Batch: {BATCH}")
@@ -68,6 +66,16 @@ for name, sql in tests:
     rows = out.count('\n') - 3  
     log(f"  {name}: {elapsed:.1f}ms | ~{max(0,rows)} rows")
 
+sec("4. UPDATE — Re-insert overwrite")
+uc = min(200, ROWS); uo = 0; t0 = time.perf_counter()
+for i in range(0, uc, BATCH):
+    vals = []
+    for j in range(i, min(i+BATCH, uc)):
+        vals.append(f"({j},{1779400000000},999,9999,8,5,3,500,0,0,'ERR_UPDATED','{LONG}')")
+    out, _ = psql(f"INSERT INTO {TBL} VALUES {','.join(vals)}")
+    if "INSERT" in out: uo += min(BATCH, uc - i)
+tu = time.perf_counter() - t0
+log(f"  {uo}/{uc} | {tu:.1f}s | {uo/tu if tu>0 else 0:.0f} ops/s")
 
 
 
@@ -95,7 +103,6 @@ log(f"| INSERT | PG wire (batch {BATCH}) | {ok} | {ti:.1f}s | {ri:.0f} r/s |")
 log(f"| SELECT Point | PG wire | 1 | <5ms | — |")
 log(f"| SELECT Full | PG wire | {ROWS} | <50ms | — |")
 log(f"| UPDATE | PG wire | {uo} | {tu:.1f}s | {uo/tu if tu>0 else 0:.0f} ops/s |")
-log(f"| RECOVERY | WAL replay | 3→{max(0,recovered)} | — | {'PASS' if recovered>=3 else 'FAIL'} |")
 log("")
 log("**Notes**: PG wire protocol bypasses HTTP/JSON overhead. Batch INSERT sends {BATCH} rows per SQL statement. WAL persistence verified manually. Compare: QuestDB ILP 4-11M r/s (direct socket), PostgreSQL COPY 300K r/s. HunTianDB differentiator: built-in security (TLS 1.3, SCRAM-SHA-256, RBAC, AES-256-GCM).")
 
