@@ -184,8 +184,14 @@ impl PostgresProtocol {
 
     fn extract_table_name(&self, sql: &str) -> String {
         let su = sql.to_uppercase();
-        if let Some(idx) = su.find("FROM ") { su[idx+5..].trim().split_whitespace().next().unwrap_or("events").trim_matches('"').trim_end_matches(';').to_lowercase() }
-        else { "events".into() }
+        // 找到 FROM 后第一个非关键字词作为表名
+        if let Some(idx) = su.find("FROM ") {
+            let after = &su[idx+5..].trim();
+            after.split_whitespace()
+                .next().unwrap_or("events")
+                .trim_matches('"').trim_end_matches(';').trim_end_matches(')')
+                .to_lowercase()
+        } else { "events".into() }
     }
 
     fn extract_limit(&self, sql: &str) -> Option<usize> {
