@@ -27,7 +27,7 @@ export function MainLayout({ children }: { children?: ReactNode }) {
     <Layout style={{ height: "100vh" }}>
       <Header style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 20px", height: 48,
+        padding: "0 24px", height: 48,
         borderBottom: "1px solid var(--td-component-stroke)",
         background: "var(--td-bg-color-container)", flexShrink: 0,
       }}>
@@ -101,7 +101,7 @@ export function MainLayout({ children }: { children?: ReactNode }) {
         </Aside>
 
         <Content style={{
-          padding: 20, overflow: "auto", flex: 1,
+          padding: 24, overflow: "auto", flex: 1,
           background: "var(--td-bg-color-page)",
         }}>
           {children}
