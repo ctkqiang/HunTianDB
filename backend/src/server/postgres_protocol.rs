@@ -340,14 +340,22 @@ impl PostgresProtocol {
 
     // 读取 Parse 消息中的 SQL 文本
     async fn read_parse(&mut self) -> HunTianResult<String> {
-        self.read_exact(4).await?; let _len = self.buffer.get_i32();
-        let name = self.read_null_terminated_string(); // statement name (ignored)
-        let sql = self.read_null_terminated_string();   // the SQL
-        // skip parameter types (2 bytes count + N*4 bytes OIDs)
-        self.read_exact(2).await?; let n = self.buffer.get_i16();
-        if n > 0 { self.read_exact(n as usize * 4).await?; self.buffer.clear(); }
-        tracing::info!("Parse: {}", sql);
-        Ok(sql)
+        self.read_exact(4).await?; let len = self.buffer.get_i32();
+        let payload = (len - 4) as usize;
+        self.read_exact(payload).await?;
+        let _stmt_name = self.read_null_terminated_string();
+        let sql = self.read_null_terminated_string();
+        let sql_str = sql.clone();
+        // skip param types if remaining
+        if self.buffer.len() >= 2 {
+            let n = self.buffer.get_i16();
+            if n > 0 && self.buffer.len() >= (n as usize * 4) {
+                for _ in 0..n { let _ = self.buffer.get_i32(); }
+            }
+        }
+        self.buffer.clear();
+        tracing::info!("Parse: {}", sql_str);
+        Ok(sql_str)
     }
 
     // 发送 ParseComplete ('1')
