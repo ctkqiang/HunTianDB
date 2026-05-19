@@ -114,10 +114,10 @@ impl PostgresProtocol {
             let tbl_name = self.extract_insert_table(s);
             let mut inserted = 0usize;
             for vals in &all_vals {
-                let result = { self.db.write().get_table_mut(&tbl_name).map(|t| t.insert(vals.clone())) };
+                let result = { self.db.write().log_insert(&tbl_name, vals.clone()) };
                 match result {
-                    Some(Ok(())) => inserted += 1,
-                    _ => {}
+                    Ok(()) => inserted += 1,
+                    Err(_) => {}
                 }
             }
             if inserted > 0 { self.send_command_complete("INSERT", inserted as u32).await?; }
