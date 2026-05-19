@@ -35,19 +35,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     tracing::info!("存储引擎已初始化 (RingBuffer 1M, WAL ready)");
 
-    // 启动 PostgreSQL 监听器（后台任务）
-    let pg_listener = huntiandb::server::listener::TlsListener::new(config.clone()).await?;
-    let pg_handle = tokio::spawn(async move {
-        if let Err(e) = pg_listener.listen().await {
-            tracing::error!("PostgreSQL 监听器异常: {}", e);
-        }
-    });
-
     // 初始化内存数据库引擎
     let db = Arc::new(parking_lot::RwLock::new(
         huntiandb::server::database::Database::new()
     ));
     tracing::info!("数据库引擎已初始化");
+
+    // 启动 PostgreSQL 线协议监听器（明文TCP，端口5409）
+    let pg_port = config.postgres_port;
+    let pg_db = db.clone();
+    let pg_handle = tokio::spawn(async move {
+        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", pg_port)).await.unwrap();
+        tracing::info!("PostgreSQL 线协议监听: 0.0.0.0:{} (明文)", pg_port);
+        loop {
+            let (stream, peer) = listener.accept().await.unwrap();
+            let db = pg_db.clone();
+            tokio::spawn(async move {
+                tracing::debug!("PG 连接: {}", peer);
+                let mut proto = huntiandb::server::postgres_protocol::PostgresProtocol::new(stream);
+                if let Err(e) = proto.handle_connection().await {
+                    tracing::warn!("PG 连接错误 ({}): {}", peer, e);
+                }
+            });
+        }
+    });
 
     // 启动 REST API（后台任务）
     let api_state = Arc::new(huntiandb::server::rest_handler::ApiState {

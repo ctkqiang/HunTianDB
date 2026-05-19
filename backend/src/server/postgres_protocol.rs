@@ -44,10 +44,11 @@ impl PostgresProtocol {
 
     /// 处理完整的认证 + 查询循环
     ///
-    /// 1. 读取 StartupMessage
-    /// 2. 发送 AuthenticationOk
-    /// 3. 循环读取查询消息并执行
+    /// 1. SSL 协商 → 2. 读取 StartupMessage → 3. 认证 → 4. 查询循环
     pub async fn handle_connection(&mut self) -> HunTianResult<()> {
+        // Step 0: SSL 协商 — 发送 'N' 拒绝 SSL (开发模式)
+        self.handle_ssl_request().await?;
+
         // Step 1: 读取启动消息
         let startup = self.read_startup_message().await?;
         self.username = startup.parameters.iter()
@@ -88,6 +89,29 @@ impl PostgresProtocol {
             }
         }
 
+        Ok(())
+    }
+
+    /// SSL 协商 — 如果客户端发送SSL请求，回复 'N' 拒绝
+    async fn handle_ssl_request(&mut self) -> HunTianResult<()> {
+        // 读取8字节 (4B 长度 + 4B SSL code)
+        self.read_exact(8).await?;
+        let len = self.buffer.get_i32();
+        let code = self.buffer.get_i32();
+
+        // SSL request: length=8, code=80877103
+        if len == 8 && code == 80877103 {
+            self.stream.write_all(&[b'N']).await?;
+            tracing::debug!("SSL 请求已拒绝");
+            return Ok(());
+        }
+
+        // 不是 SSL 请求 — 把8字节放回 buffer，让 read_startup_message 处理
+        let mut saved = Vec::with_capacity(8);
+        saved.extend_from_slice(&len.to_be_bytes());
+        saved.extend_from_slice(&code.to_be_bytes());
+        self.buffer = BytesMut::with_capacity(4096);
+        self.buffer.extend_from_slice(&saved);
         Ok(())
     }
 
@@ -136,17 +160,27 @@ impl PostgresProtocol {
         Ok(())
     }
 
-    /// 处理简单查询（INSERT / SELECT）
+    /// 处理简单查询 — 返回基础 PG 兼容响应
     async fn handle_query(&mut self, sql: &str) -> HunTianResult<()> {
         let sql_upper = sql.trim().to_uppercase();
 
-        if sql_upper.starts_with("INSERT") {
-            // 模拟 INSERT 成功
-            self.send_command_complete("INSERT", 1).await?;
-        } else if sql_upper.starts_with("SELECT") || sql_upper.starts_with("BEGIN") || sql_upper.starts_with("COMMIT") {
+        if sql_upper.starts_with("SELECT") {
+            // 发送空的 SELECT 结果 (RowDescription + CommandComplete)
+            // T = RowDescription: 发送0列
+            let t_msg = [b'T', 0, 0, 0, 6, 0, 0]; // length=6, 0 columns
+            self.stream.write_all(&t_msg).await?;
             self.send_command_complete("SELECT", 0).await?;
+        } else if sql_upper.starts_with("INSERT") {
+            self.send_command_complete("INSERT", 1).await?;
+        } else if sql_upper.starts_with("BEGIN") || sql_upper.starts_with("START") {
+            self.send_command_complete("BEGIN", 0).await?;
+        } else if sql_upper.starts_with("COMMIT") {
+            self.send_command_complete("COMMIT", 0).await?;
+        } else if sql_upper.starts_with("SET ") || sql_upper.starts_with("SHOW ") {
+            // DBeaver 发送 SET application_name, SHOW 等 — 静默成功
+            self.send_command_complete("SET", 0).await?;
         } else {
-            self.send_error("不支持的操作").await?;
+            self.send_error(&format!("不支持: {}", sql)).await?;
         }
 
         self.send_ready_for_query().await?;
