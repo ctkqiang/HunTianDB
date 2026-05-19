@@ -68,6 +68,9 @@ uuid = { version = "1", features = ["v4", "v7"] }
 thiserror = "2"
 anyhow = "1"
 
+# HTTP 客户端 (benchmark)
+reqwest = { version = "0.12", features = ["json"] }
+
 # HTTP REST (Portal后端)
 axum = "0.8"
 tower = "0.5"
@@ -76,6 +79,10 @@ tower-http = { version = "0.6", features = ["cors"] }
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 tempfile = "3"
+
+[[bin]]
+name = "bench"
+path = "../benchmark/benchmark.rs"
 
 [[bench]]
 name = "benchmark"
