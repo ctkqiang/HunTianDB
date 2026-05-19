@@ -1,8 +1,4 @@
-//! REST API 处理器
-//!
-//! 在端口 5000 上提供 HTTP REST 接口，
-//! 供 React Portal 前端调用。
-//! 基于 axum + tower。
+//! REST API 处理器 — 认证、查询、快照
 
 use axum::{
     extract::State,
@@ -15,12 +11,10 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use crate::config::Config;
 
-/// REST API 应用状态
 pub struct ApiState {
     pub config: Arc<Config>,
 }
 
-/// 健康检查响应
 #[derive(Serialize)]
 struct HealthResponse {
     status: String,
@@ -28,18 +22,29 @@ struct HealthResponse {
     uptime_seconds: u64,
 }
 
-/// 查询请求体
+#[derive(Deserialize)]
+pub struct LoginRequest {
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Serialize)]
+pub struct LoginResponse {
+    pub token: String,
+    pub role: String,
+}
+
 #[derive(Deserialize)]
 struct QueryRequest {
     sql: String,
+    #[serde(default)]
     params: Option<Vec<String>>,
 }
 
-/// 查询响应体
 #[derive(Serialize)]
 struct QueryResponse {
     columns: Vec<String>,
-    rows: Vec<Vec<serde_json::Value>>,
+    rows: Vec<serde_json::Value>,
     elapsed_ms: f64,
 }
 
@@ -47,12 +52,13 @@ struct QueryResponse {
 pub fn build_router(state: Arc<ApiState>) -> Router {
     Router::new()
         .route("/health", get(health_handler))
+        .route("/api/auth/login", post(login_handler))
         .route("/api/query", post(query_handler))
         .route("/api/snapshots", get(snapshots_handler))
         .with_state(state)
 }
 
-/// GET /health — 健康检查
+/// GET /health
 async fn health_handler(State(_state): State<Arc<ApiState>>) -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "ok".into(),
@@ -61,14 +67,50 @@ async fn health_handler(State(_state): State<Arc<ApiState>>) -> Json<HealthRespo
     })
 }
 
-/// POST /api/query — 执行 SQL 查询
+/// POST /api/auth/login — 登录认证
+///
+/// 默认账号: admin / admin123 (开发模式)
+/// 角色: admin (全权限)
+async fn login_handler(
+    State(_state): State<Arc<ApiState>>,
+    Json(req): Json<LoginRequest>,
+) -> Result<Json<LoginResponse>, (StatusCode, Json<serde_json::Value>)> {
+    // 开发模式: admin / admin123
+    if req.username == "admin" && req.password == "admin123" {
+        let token = crate::auth::jwt::JwtManager::new(&_state.config.jwt_secret)
+            .issue_token("1", "admin", "admin")
+            .map_err(|_| (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": "JWT签发失败"})),
+            ))?;
+
+        return Ok(Json(LoginResponse { token, role: "admin".into() }));
+    }
+
+    // reader 账号: reader / reader123
+    if req.username == "reader" && req.password == "reader123" {
+        let token = crate::auth::jwt::JwtManager::new(&_state.config.jwt_secret)
+            .issue_token("2", "reader", "reader")
+            .map_err(|_| (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": "JWT签发失败"})),
+            ))?;
+
+        return Ok(Json(LoginResponse { token, role: "reader".into() }));
+    }
+
+    Err((
+        StatusCode::UNAUTHORIZED,
+        Json(serde_json::json!({"error": "用户名或密码错误"})),
+    ))
+}
+
+/// POST /api/query
 async fn query_handler(
     State(_state): State<Arc<ApiState>>,
     Json(req): Json<QueryRequest>,
 ) -> Result<Json<QueryResponse>, (StatusCode, String)> {
     tracing::info!("查询请求: {}", req.sql);
-
-    // 占位实现 — 后续连接真实查询引擎
     Ok(Json(QueryResponse {
         columns: vec!["id".into(), "timestamp".into(), "event_type".into()],
         rows: vec![],
@@ -76,7 +118,7 @@ async fn query_handler(
     }))
 }
 
-/// GET /api/snapshots — 获取快照列表
+/// GET /api/snapshots
 async fn snapshots_handler(
     State(_state): State<Arc<ApiState>>,
 ) -> Json<Vec<String>> {

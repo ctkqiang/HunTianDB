@@ -49,6 +49,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
     let api_router = huntiandb::server::rest_handler::build_router(api_state);
 
+    // CORS 层 — 允许前端跨域访问
+    let cors = tower_http::cors::CorsLayer::new()
+        .allow_origin(tower_http::cors::Any)
+        .allow_methods(tower_http::cors::Any)
+        .allow_headers(tower_http::cors::Any);
+    let api_router = api_router.layer(cors);
+
     let rest_addr = format!("0.0.0.0:{}", config.rest_port);
     let rest_listener = tokio::net::TcpListener::bind(&rest_addr).await?;
     tracing::info!("REST API 监听器启动: {}", rest_addr);
