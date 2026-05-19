@@ -6,19 +6,19 @@ export function Settings() {
   const { t } = useT();
 
   const info = [
-    ["版本", "v1.0.0"], ["PG 端口", "5409 (TLS 1.3)"], ["REST 端口", "5001"],
-    ["存储", "Parquet + Arrow 53"], ["压缩", "Snappy / LZ4 / Zstd"],
-    ["加密", "AES-256-GCM (HKDF-SHA256)"],
+    [t("version"), "v1.0.0"], [t("pg_port"), "5409 (TLS 1.3)"], [t("rest_port"), "5001"],
+    [t("storage"), "Parquet + Arrow 53"], [t("sql_parser"), "Snappy / LZ4 / Zstd"],
+    [t("encryption"), "AES-256-GCM (HKDF-SHA256)"],
   ];
 
   const sec = [
-    ["传输", "TLS 1.3 + P-521 ECDHE"], ["静态", "AES-256-GCM"],
-    ["认证", "mTLS + SCRAM-SHA-256 + JWT"], ["授权", "RBAC 4级"],
+    ["TLS", "TLS 1.3 + P-521 ECDHE"], ["AES", "AES-256-GCM"],
+    [t("security"), "mTLS + SCRAM-SHA-256 + JWT"], ["RBAC", "4 级 (admin/auditor/writer/reader)"],
   ];
 
   return (
     <div>
-      <h2 style={{ margin: "0 0 16px", fontSize: 18, fontWeight: 700 }}>{t("settings")}</h2>
+      <h2 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700 }}>{t("settings")}</h2>
       <Row gutter={16}>
         <Col span={8}>
           <Card bordered title={t("system_info")}>
@@ -37,7 +37,7 @@ export function Settings() {
               <div><div style={{ fontWeight: 700, fontSize: 15 }}>{t("app_name")}</div><div style={{ fontSize: 11, color: "var(--td-text-color-placeholder)" }}>{t("app_desc")}</div></div>
             </div>
             <Divider style={{ margin: "8px 0" }} />
-            {[["作者", "钟智强", <UserIcon />], ["邮箱", "ctkqiang@dingtalk.com", <MailIcon />], ["仓库", "gitcode.com/ctkqiang_sr/HunTianDB", <CodeIcon />]].map(([k, v, i]) => (
+            {[[t("author"), "钟智强", <UserIcon />], [t("email"), "ctkqiang@dingtalk.com", <MailIcon />], [t("repo"), "gitcode.com/ctkqiang_sr/HunTianDB", <CodeIcon />]].map(([k, v, i]) => (
               <div key={k as string} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 12 }}><span style={{ color: "var(--td-brand-color)" }}>{i as any}</span><span style={{ color: "var(--td-text-color-placeholder)" }}>{k}:</span><span>{v}</span></div>
             ))}
           </Card>
