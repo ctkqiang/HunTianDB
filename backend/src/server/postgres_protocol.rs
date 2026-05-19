@@ -69,7 +69,7 @@ impl PostgresProtocol {
     async fn handle_query(&mut self, sql: &str) -> HunTianResult<()> {
         let s = sql.trim();
         let su = s.to_uppercase();
-        tracing::debug!("混天::查询 {}", s);
+        tracing::info!("混天::查询 {}", s);
 
         if su.starts_with("SET ") || su.starts_with("RESET ") || su.starts_with("BEGIN") || su.starts_with("START ") || su.starts_with("COMMIT") || su.starts_with("ROLLBACK") || su.starts_with("DISCARD ") || su.starts_with("DEALLOCATE ") {
             self.send_command_complete("OK", 0).await?;
