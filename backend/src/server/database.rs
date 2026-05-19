@@ -63,11 +63,12 @@ pub struct Database {
     pub tables: HashMap<String, Table>,
     pub users: HashMap<String, DbUser>,
     pub data_dir: std::path::PathBuf,
+    pub wal_enabled: bool,
 }
 
 impl Database {
-    pub fn new(data_dir: std::path::PathBuf) -> Self {
-        let mut db = Self { tables: HashMap::new(), users: HashMap::new(), data_dir };
+    pub fn new(data_dir: std::path::PathBuf, wal_enabled: bool) -> Self {
+        let mut db = Self { tables: HashMap::new(), users: HashMap::new(), data_dir, wal_enabled };
         // 预置默认用户
         for (user, pass, role) in [
             ("admin", "admin123", "admin"), ("root", "root123", "admin"),
@@ -97,7 +98,7 @@ impl Database {
             ColumnDef{name:"metadata_json".into(),col_type:"BYTEA".into(),nullable:true},
         ]);
         // 回放 WAL 恢复数据
-        db.replay_recovery_log();
+        if wal_enabled { db.replay_recovery_log(); }
         db
     }
 
@@ -131,6 +132,7 @@ impl Database {
 
     // 记录操作到 WAL
     fn log_op(&self, op: WalOp) {
+        if !self.wal_enabled { return; }
         let path = self.data_dir.join("recovery.log");
         if let Ok(json) = serde_json::to_string(&op) {
             use std::io::Write;

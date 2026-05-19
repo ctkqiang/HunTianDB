@@ -29,6 +29,8 @@ pub struct Config {
     pub wal_batch_size: usize,
     /// 单分区最大事件数
     pub max_events_per_partition: u64,
+    /// WAL 持久化开关（关闭后启动极速，但数据不持久）
+    pub wal_enabled: bool,
 }
 
 impl Config {
@@ -67,6 +69,7 @@ impl Config {
             wal_sync_interval_ms: env_u64("WAL_SYNC_INTERVAL_MS", 100),
             wal_batch_size: env_usize("WAL_BATCH_SIZE", 100_000),
             max_events_per_partition: env_u64("MAX_EVENTS_PER_PARTITION", 1_000_000),
+            wal_enabled: env_str("WAL_ENABLED", "true") != "false",
         })
     }
 }
