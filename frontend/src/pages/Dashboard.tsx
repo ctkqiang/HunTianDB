@@ -128,6 +128,40 @@ export function Dashboard() {
           </Card>
         </Col>
       </Row>
+
+      {/* 吞吐量详细统计 */}
+      {(() => {
+        const vals = data.map((d) => d.eps);
+        const min = Math.min(...vals);
+        const max = Math.max(...vals);
+        const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+        const diffs = vals.map((v) => (v - avg) ** 2);
+        const std = Math.sqrt(diffs.reduce((a, b) => a + b, 0) / vals.length);
+        const rows = [
+          ["当前", `${(vals[vals.length - 1] / 1000000).toFixed(2)} M/s`, "success"],
+          ["平均", `${(avg / 1000000).toFixed(2)} M/s`, "primary"],
+          ["峰值", `${(max / 1000000).toFixed(2)} M/s`, "warning"],
+          ["谷值", `${(min / 1000000).toFixed(2)} M/s`, "default"],
+          ["波动", `±${(std / 1000000).toFixed(2)} M/s`, "default"],
+          ["窗口", `${vals.length} 点 (${(vals.length / 60).toFixed(0)}分钟)`, "default"],
+        ];
+        return (
+          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+            <Col span={14}>
+              <Card bordered title={t("write_throughput") + " 数据概览"}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+                  {rows.map(([label, value, theme]) => (
+                    <div key={label as string} style={{ padding: "10px 14px", borderRadius: 8, background: "var(--td-bg-color-component)" }}>
+                      <div style={{ fontSize: 11, color: "var(--td-text-color-placeholder)", marginBottom: 4 }}>{label}</div>
+                      <Tag size="medium" theme={theme as any} variant="light">{value}</Tag>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </Col>
+          </Row>
+        );
+      })()}
     </div>
   );
 }
