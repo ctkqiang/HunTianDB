@@ -23,6 +23,7 @@ export function QueryBuilder() {
   });
   const [fullscreen, setFullscreen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [suggestion, setSuggestion] = useState<string | null>(null);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") runQuery(); };
@@ -41,13 +42,21 @@ export function QueryBuilder() {
   const runQuery = useCallback(async () => {
     const trimmed = sql.trim();
     if (!trimmed) return;
-    setLoading(true); setError(null); setResult(null);
+    setLoading(true); setError(null); setSuggestion(null); setResult(null);
     try {
       const res = await queryEvents({ sql: trimmed });
-      setResult(res); setElapsed(res.elapsedMs);
-      localStorage.setItem("hunt_sql", trimmed);
-      addToHistory(trimmed);
-      MessagePlugin.success(`${res.rows.length} rows · ${res.elapsedMs}ms`);
+      // 检查是否为表名错误建议
+      if (res.columns.includes("suggestion") && res.rows.length === 1) {
+        const row = res.rows[0] as any;
+        setError(row.error);
+        setSuggestion(row.suggestion || null);
+        MessagePlugin.warning(row.error);
+      } else {
+        setResult(res); setElapsed(res.elapsedMs);
+        localStorage.setItem("hunt_sql", trimmed);
+        addToHistory(trimmed);
+        MessagePlugin.success(`${res.rows.length} rows · ${res.elapsedMs}ms`);
+      }
     } catch (err: any) {
       const msg = err?.response?.data?.error || err?.message || "查询执行失败";
       setError(msg);
@@ -98,8 +107,24 @@ export function QueryBuilder() {
         />
 
         {error && (
-          <div style={{ marginTop: 8, padding: "10px 14px", borderRadius: 6, background: "var(--td-error-color-1)", border: "1px solid var(--td-error-color-3)", color: "var(--td-error-color-7)", fontSize: 12, fontFamily: "monospace", whiteSpace: "pre-wrap" }}>
+          <div style={{ marginTop: 8, padding: "10px 14px", borderRadius: 6, background: "var(--td-warning-color-1)", border: "1px solid var(--td-warning-color-3)", color: "var(--td-warning-color-7)", fontSize: 12 }}>
             {error}
+            {suggestion && (
+              <span>
+                {". "}Did you mean{" "}
+                <span
+                  onClick={() => { setSql(suggestion); setError(null); setSuggestion(null); runQuery(); }}
+                  style={{ cursor: "pointer", color: "var(--td-brand-color)", textDecoration: "underline", fontWeight: 600, fontFamily: "monospace" }}
+                >
+                  events
+                </span>
+                {"? "}
+                <Tag size="small" theme="primary" style={{ cursor: "pointer", marginLeft: 6 }}
+                  onClick={() => { setSql(suggestion); setError(null); setSuggestion(null); }}>
+                  Run: {suggestion}
+                </Tag>
+              </span>
+            )}
           </div>
         )}
 

@@ -116,15 +116,21 @@ async fn query_handler(
 
     // 解析 SQL 提取表名、LIMIT、ORDER BY
     let sql_upper = sql.to_uppercase();
-    let table_name = extract_table(&sql_upper);
+    let table_upper = extract_table(&sql_upper);
+    let table_orig = extract_table(sql);
 
-    // 验证表名 — 只允许 events 表
-    if let Some(ref tbl) = table_name {
+    // 验证表名 — 只允许 events 表，返回可点击的建议SQL
+    if let Some(ref tbl) = table_upper {
         if tbl != "EVENTS" && tbl != "\"EVENTS\"" {
+            let bad_table = table_orig.as_deref().unwrap_or(tbl);
+            let suggestion = sql.replacen(bad_table, "events", 1);
             let elapsed = t0.elapsed().as_secs_f64() * 1000.0;
             return Ok(Json(QueryResponse {
-                columns: vec!["error".into()],
-                rows: vec![serde_json::json!({"error": format!("表 '{}' 不存在 — 仅有 events 表", tbl)})],
+                columns: vec!["error".into(), "suggestion".into()],
+                rows: vec![serde_json::json!({
+                    "error": format!("表 '{}' 不存在", tbl.to_lowercase()),
+                    "suggestion": suggestion,
+                })],
                 elapsed_ms: elapsed,
             }));
         }
