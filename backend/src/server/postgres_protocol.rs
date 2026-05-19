@@ -34,6 +34,7 @@ pub struct PostgresProtocol {
 impl PostgresProtocol {
     /// 基于已建立的 TCP 连接创建协议处理器
     pub fn new(stream: TcpStream) -> Self {
+        let _ = stream.set_nodelay(true);
         Self {
             stream,
             buffer: BytesMut::with_capacity(4096),
@@ -249,7 +250,7 @@ impl PostgresProtocol {
         let sql_upper = sql.trim().to_uppercase();
 
         let silent = sql_upper.starts_with("SET ")
-            || sql_upper.starts_with("SHOW ") || sql_upper.starts_with("RESET ")
+            || (sql_upper.starts_with("SHOW ") && !sql_upper.contains("TABLES")) || sql_upper.starts_with("RESET ")
             || sql_upper.starts_with("BEGIN") || sql_upper.starts_with("START ")
             || sql_upper.starts_with("COMMIT") || sql_upper.starts_with("ROLLBACK")
             || sql_upper.starts_with("DISCARD ") || sql_upper.starts_with("DEALLOCATE ")
@@ -258,6 +259,10 @@ impl PostgresProtocol {
 
         if silent {
             self.send_command_complete("OK", 0).await?;
+        } else if sql_upper.contains("SHOW TABLES") {
+            self.send_row_desc("table_name").await?;
+            self.send_data_row("events").await?;
+            self.send_command_complete("SELECT", 1).await?;
         } else if sql_upper.starts_with("INSERT") {
             self.send_command_complete("INSERT", 1).await?;
         } else if sql_upper.starts_with("CREATE ") || sql_upper.starts_with("DROP ") || sql_upper.starts_with("ALTER ") {
@@ -290,7 +295,11 @@ impl PostgresProtocol {
             self.send_row_desc("typname").await?;
             self.send_data_row("text").await?;
             self.send_command_complete("SELECT", 1).await?;
-        } else if sql_upper.contains("PG_CLASS") || sql_upper.contains("PG_ATTRIBUTE") || sql_upper.contains("PG_CATALOG") || sql_upper.contains("INFORMATION_SCHEMA") {
+        } else if sql_upper.contains("PG_CLASS") {
+            self.send_row_desc("relname").await?;
+            self.send_data_row("events").await?;
+            self.send_command_complete("SELECT", 1).await?;
+        } else if sql_upper.contains("PG_ATTRIBUTE") || sql_upper.contains("PG_CATALOG") || sql_upper.contains("INFORMATION_SCHEMA") {
             self.send_empty_result().await?;
             self.send_command_complete("SELECT", 0).await?;
         } else if sql_upper.starts_with("SELECT") {
@@ -365,12 +374,14 @@ impl PostgresProtocol {
     // 发送 ParseComplete ('1')
     async fn send_parse_complete(&mut self) -> HunTianResult<()> {
         self.stream.write_all(&[b'1', 0, 0, 0, 4]).await?;
+        self.stream.flush().await?;
         Ok(())
     }
 
     // 发送 BindComplete ('2')
     async fn send_bind_complete(&mut self) -> HunTianResult<()> {
         self.stream.write_all(&[b'2', 0, 0, 0, 4]).await?;
+        self.stream.flush().await?;
         Ok(())
     }
 
