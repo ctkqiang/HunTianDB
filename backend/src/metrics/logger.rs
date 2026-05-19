@@ -20,7 +20,7 @@ pub fn init_logger(json_output: bool) {
             .with_file(false)
             .with_line_number(false)
             .with_span_events(FmtSpan::NONE)
-            .with_timer(fmt::time::LocalTime::rfc_3339())
+            .with_timer(fmt::time::SystemTime)
             .compact()
             .init();
     }
