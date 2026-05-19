@@ -14,7 +14,7 @@ const SAMPLE_QUERIES = [
 ];
 
 export function QueryBuilder() {
-  const [sql, setSql] = useState(() => localStorage.getItem("hunt_sql") || SAMPLE_QUERIES[0].sql);
+  const [sql, setSql] = useState(() => String(localStorage.getItem("hunt_sql") || SAMPLE_QUERIES[0].sql));
   const [result, setResult] = useState<QueryResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [elapsed, setElapsed] = useState<number | null>(null);
@@ -44,7 +44,7 @@ export function QueryBuilder() {
     const trimmed = (raw ?? "").trim();
     if (!trimmed) return;
     setLoading(true); setError(null); setSuggestion(null); setResult(null);
-    if (querySql) setSql(querySql);
+    if (typeof querySql === "string") setSql(querySql);
     try {
       const res = await queryEvents({ sql: trimmed });
       if (res.columns.includes("suggestion") && res.rows.length === 1) {
@@ -95,8 +95,8 @@ export function QueryBuilder() {
         )}
 
         <Textarea
-          value={sql}
-          onChange={(v) => { setSql(v as string); setError(null); }}
+          value={String(sql ?? "")}
+          onChange={(v) => { setSql(String(v ?? "")); setError(null); }}
           placeholder="输入 SQL 查询语句..."
           autosize={{ minRows: fullscreen ? 18 : 6, maxRows: fullscreen ? 28 : 12 }}
           style={{
