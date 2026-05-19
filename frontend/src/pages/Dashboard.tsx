@@ -78,25 +78,14 @@ export function Dashboard() {
         const f=(k:string)=>detail[k];
         const ip=(n:number)=>`${(n>>>24)&0xFF}.${(n>>>16)&0xFF}.${(n>>>8)&0xFF}.${n&0xFF}`;
         const dt=(ms:number)=>new Date(ms).toLocaleString("zh-CN");
-        const Section=({title,children}:any)=>(<div style={{marginBottom:16}}><div style={{fontSize:12,fontWeight:700,color:"var(--td-text-color-secondary)",marginBottom:8,textTransform:"uppercase",letterSpacing:1}}>{title}</div><div style={{background:"var(--td-bg-color-component)",borderRadius:8,padding:"2px 12px"}}>{children}</div></div>);
-        const Row=({k,v}:{k:string,v:any})=>(<div style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid var(--td-component-stroke)",fontSize:13}}><span style={{color:"var(--td-text-color-placeholder)"}}>{k}</span><span style={{fontWeight:600,fontFamily:"monospace"}}>{v}</span></div>);
+        const sec=(t:string,c:any)=>(<div key={t} style={{marginBottom:14}}><div style={{fontSize:11,fontWeight:700,color:"var(--td-text-color-secondary)",marginBottom:6,letterSpacing:1}}>{t}</div><div style={{background:"var(--td-bg-color-component)",borderRadius:8,padding:"4px 12px"}}>{c}</div></div>);
+        const r=(k:string,v:any)=>(<div key={k} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid var(--td-component-stroke)",fontSize:13}}><span style={{color:"var(--td-text-color-placeholder)"}}>{k}</span><span style={{fontWeight:600,fontFamily:"monospace"}}>{v}</span></div>);
         return(<div>
-          <Section title="标识">
-            <Row k="ID" v={f("id")}/><Row k="事件类型" v={<Tag size="small" theme={TC[f("event_type")]||"default"} variant="light">{TL[f("event_type")]||f("event_type")}</Tag>}/>
-          </Section>
-          <Section title="时间">
-            <Row k="时间戳" v={dt(f("timestamp"))}/>
-          </Section>
-          <Section title="安全上下文">
-            <Row k="用户 ID" v={f("user_id")}/><Row k="会话 ID" v={f("session_id")}/><Row k="IP 地址" v={ip(f("ip_address"))}/><Row k="分区" v={f("zone")}/><Row k="区域" v={f("region")}/>
-          </Section>
-          <Section title="结果">
-            <Row k="状态码" v={<Tag size="small" theme={f("status_code")<300?"success":"danger"} variant="light">{f("status_code")}</Tag>}/><Row k="锁 ID" v={f("lock_id")}/><Row k="父事件" v={f("parent_event_id")||"—"}/>
-          </Section>
-          {(f("error_msg")||f("metadata_json"))&&<Section title="附加">
-            {f("error_msg")&&<Row k="错误消息" v={<span style={{color:"var(--td-error-color)"}}>{f("error_msg")}</span>}/>}
-            {f("metadata_json")&&<Row k="元数据" v={f("metadata_json")}/>}
-          </Section>}
+          {sec("标识",[r("ID",f("id")),r("事件类型",<Tag size="small" theme={TC[f("event_type")]||"default"} variant="light">{TL[f("event_type")]||f("event_type")}</Tag>)])}
+          {sec("时间",r("时间戳",dt(f("timestamp"))))}
+          {sec("安全上下文",[r("用户 ID",f("user_id")),r("会话 ID",f("session_id")),r("IP 地址",ip(f("ip_address"))),r("分区",f("zone")),r("区域",f("region"))])}
+          {sec("结果",[r("状态码",<Tag size="small" theme={f("status_code")<300?"success":"danger"} variant="light">{f("status_code")}</Tag>),r("锁 ID",f("lock_id")),r("父事件",f("parent_event_id")||"—")])}
+          {(f("error_msg")||f("metadata_json"))&&sec("附加",[f("error_msg")&&r("错误消息",<span style={{color:"var(--td-error-color)"}}>{f("error_msg")}</span>),f("metadata_json")&&r("元数据",f("metadata_json"))])}
         </div>);
       })()}
     </Drawer>
