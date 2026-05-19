@@ -49,10 +49,7 @@ export function Dashboard() {
             </Card>
           </Col>
         </Row>
-      </Col>
-
-      <Col span={10}>
-        <Card bordered title={<span>事件流 <Tag size="small" theme="success" variant="light" style={{marginLeft:8}}>{total}</Tag></span>} style={{marginBottom:16}}>
+        <Card bordered title={<span>事件流 <Tag size="small" theme="success" variant="light" style={{marginLeft:8}}>{total}</Tag></span>} style={{marginTop:12}}>
           {rows.length===0?<div style={{padding:60,textAlign:"center",color:"var(--td-text-color-placeholder)",fontSize:13}}>{t("no_events")}</div>:
           <div style={{maxHeight:436,overflow:"auto"}}>
             {rows.slice(0,12).map((e:any,i:number)=>(<div key={e.id??i} className="event-feed-item" onClick={()=>setDetail(e)}>
