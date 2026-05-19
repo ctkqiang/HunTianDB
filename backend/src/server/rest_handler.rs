@@ -20,6 +20,7 @@ pub struct ApiState {
 pub fn build_router(state: Arc<ApiState>) -> Router {
     Router::new()
         .route("/health", get(health_handler))
+        .route("/api/health", get(health_handler))
         .route("/api/auth/login", post(login_handler))
         .route("/api/query", post(query_handler))
         .route("/api/snapshots", get(snapshots_handler))
