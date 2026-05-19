@@ -1,5 +1,5 @@
 import { Card, Row, Col, Tag, Space, Divider } from "tdesign-react";
-import { LinkIcon, MailIcon, UserIcon, ServerIcon, ShieldIcon, LayersIcon, CodeIcon } from "tdesign-icons-react";
+import { LinkIcon, MailIcon, UserIcon, ServerIcon, CodeIcon } from "tdesign-icons-react";
 
 export function Settings() {
   return (
