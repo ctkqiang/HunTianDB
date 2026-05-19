@@ -142,16 +142,20 @@ impl PostgresProtocol {
                 self.send_data_row("huntiandb").await?;
                 self.send_command_complete("SELECT", 1).await?;
             } else if su.contains("PG_DATABASE") {
-                // DBeaver: pg_database discovery
                 self.send_row_desc("datname").await?;
                 self.send_data_row("huntiandb").await?;
                 self.send_command_complete("SELECT", 1).await?;
+            } else if su.contains("PG_CLASS") {
+                // psql \dt — return actual tables
+                let names = { self.db.read().table_names() };
+                self.send_row_desc("relname").await?;
+                for n in &names { self.send_data_row(n).await?; }
+                self.send_command_complete("SELECT", names.len() as u32).await?;
             } else if su.contains("PG_NAMESPACE") {
                 self.send_row_desc("nspname").await?;
                 self.send_data_row("public").await?;
                 self.send_command_complete("SELECT", 1).await?;
             } else if su.contains("PG_") || su.contains("INFORMATION_SCHEMA") {
-                // Other pg_catalog — return empty with proper schema
                 self.send_empty_result().await?;
                 self.send_command_complete("SELECT", 0).await?;
             } else {

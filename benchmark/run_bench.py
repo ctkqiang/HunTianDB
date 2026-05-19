@@ -68,16 +68,6 @@ for name, sql in tests:
     rows = out.count('\n') - 3  
     log(f"  {name}: {elapsed:.1f}ms | ~{max(0,rows)} rows")
 
-sec("4. UPDATE — Re-insert overwrite")
-uc = min(200, ROWS); uo = 0; t0 = time.perf_counter()
-for i in range(0, uc, BATCH):
-    vals = []
-    for j in range(i, min(i+BATCH, uc)):
-        vals.append(f"({j},{1779400000000},999,9999,8,5,3,500,0,0,'ERR_UPDATED','{LONG}')")
-    out, _ = psql(f"INSERT INTO {TBL} VALUES {','.join(vals)}")
-    if "INSERT" in out: uo += min(BATCH, uc - i)
-tu = time.perf_counter() - t0
-log(f"  {uo}/{uc} | {tu:.1f}s | {uo/tu if tu>0 else 0:.0f} ops/s")
 
 
 

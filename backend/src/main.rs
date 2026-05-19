@@ -8,6 +8,12 @@ use tokio::signal;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .thread_name("混天")
+        .enable_all()
+        .build()?;
+
+    rt.block_on(async {
     // 初始化日志
     huntiandb::metrics::logger::init_logger(false);
 
@@ -42,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 启动 PostgreSQL 线协议监听器（明文TCP，端口5408）
     let pg_port = config.postgres_port;
     let pg_db = db.clone();
-    let pg_handle = tokio::spawn(async move {
+    let pg_handle = tokio::task::Builder::new().name("混天::WIRE").spawn(async move {
         let addr = format!("0.0.0.0:{}", pg_port);
         let socket = tokio::net::TcpSocket::new_v4().unwrap();
         socket.set_reuseaddr(true).unwrap();
@@ -83,7 +89,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rest_listener = rest_socket.listen(1024).unwrap();
     tracing::info!("REST API 监听器启动: {} (SO_REUSEADDR)", rest_addr);
 
-    let rest_handle = tokio::spawn(async move {
+    let rest_handle = tokio::task::Builder::new().name("混天::REST").spawn(async move {
         axum::serve(rest_listener, api_router)
             .await
             .map_err(|e| tracing::error!("REST 服务异常: {}", e))
