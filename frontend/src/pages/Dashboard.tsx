@@ -73,7 +73,7 @@ export function Dashboard() {
       </Col>
     </Row>
 
-    <Drawer visible={detail!==null} onClose={()=>setDetail(null)} header="事件详情" size="medium" placement="right" footer={false}>
+    <Drawer visible={detail!==null} onClose={()=>setDetail(null)} header="事件详情" size="medium" placement="right" footer={false} closeBtn={false}>
       {detail&&(()=>{
         const f=(k:string)=>detail[k];
         const ip=(n:number)=>`${(n>>>24)&0xFF}.${(n>>>16)&0xFF}.${(n>>>8)&0xFF}.${n&0xFF}`;
