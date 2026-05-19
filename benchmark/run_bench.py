@@ -94,7 +94,7 @@ log("  Inserted 3 rows. Simulating crash...")
 subprocess.run(["pkill", "-9", "-f", "huntiandb"], capture_output=True)
 time.sleep(1)
 # Restart with os.system (reliable detached process)
-enc = "dGVzdC1rZXktMzItYnl0ZXMtZm9yLWRldi1vbmx5LQ=="
+enc = "JEGl9OTwFUMjPXnVMe/3q9g1uEZtW6MvSH3GaRZFQjo="
 os.system(f"DB_ENCRYPTION_KEY={enc} REST_PORT=5001 POSTGRES_PORT=5409 nohup ./target/debug/huntiandb > /tmp/huntiandb.log 2>&1 &")
 # Retry psql connection up to 20 times (SO_REUSEADDR enables instant rebind)
 recovered = 0
