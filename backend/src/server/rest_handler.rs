@@ -4,7 +4,7 @@ use axum::{extract::State, http::StatusCode, response::Json, routing::{get, post
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use crate::config::Config;
-use crate::server::database::{ColumnDef, Database, SharedDb};
+use crate::server::database::{ColumnDef, SharedDb};
 
 pub struct ApiState {
     pub config: Arc<Config>,

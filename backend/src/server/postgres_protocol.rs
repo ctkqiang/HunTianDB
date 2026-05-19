@@ -3,12 +3,11 @@
 //! 支持标准 Start-up → Authentication → Query 流程。
 //! 已接入内存数据库引擎：INSERT/SELECT/CREATE TABLE 真实执行。
 
-use bytes::{Buf, BufMut, BytesMut};
+use bytes::{Buf, BytesMut};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use std::sync::Arc;
 use crate::error::{HunTianError, HunTianResult};
-use crate::server::database::{Database, SharedDb};
+use crate::server::database::SharedDb;
 
 #[derive(Debug)]
 pub struct StartupMessage { pub protocol_version: i32, pub parameters: Vec<(String, String)> }
