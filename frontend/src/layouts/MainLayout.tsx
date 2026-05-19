@@ -52,7 +52,7 @@ export function MainLayout({ children }: { children?: ReactNode }) {
 
         <Space size={8}>
           <Button variant="text" shape="square" size="small"
-            icon={theme === "dark" ? <SunnyIcon /> : <MoonIcon />}
+            icon={theme === "dark" ? <MoonIcon /> : <SunnyIcon />}
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           />
           <Radio.Group variant="default-filled" size="small" value={lang}
