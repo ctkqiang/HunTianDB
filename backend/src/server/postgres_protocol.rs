@@ -69,7 +69,7 @@ impl PostgresProtocol {
     async fn handle_query(&mut self, sql: &str) -> HunTianResult<()> {
         let s = sql.trim();
         let su = s.to_uppercase();
-        tracing::info!("PG: {}", s);
+        tracing::debug!("混天::查询 {}", s);
 
         if su.starts_with("SET ") || su.starts_with("RESET ") || su.starts_with("BEGIN") || su.starts_with("START ") || su.starts_with("COMMIT") || su.starts_with("ROLLBACK") || su.starts_with("DISCARD ") || su.starts_with("DEALLOCATE ") {
             self.send_command_complete("OK", 0).await?;
@@ -141,16 +141,19 @@ impl PostgresProtocol {
                 self.send_row_desc("current_database").await?;
                 self.send_data_row("huntiandb").await?;
                 self.send_command_complete("SELECT", 1).await?;
+            } else if su.contains("PG_DATABASE") {
+                // DBeaver: pg_database discovery
+                self.send_row_desc("datname").await?;
+                self.send_data_row("huntiandb").await?;
+                self.send_command_complete("SELECT", 1).await?;
+            } else if su.contains("PG_NAMESPACE") {
+                self.send_row_desc("nspname").await?;
+                self.send_data_row("public").await?;
+                self.send_command_complete("SELECT", 1).await?;
             } else if su.contains("PG_") || su.contains("INFORMATION_SCHEMA") {
-                // \dt / pg_catalog discovery — return actual tables
-                let names = { self.db.read().table_names() };
-                if names.is_empty() {
-                    self.send_empty_result().await?;
-                } else {
-                    self.send_row_desc("table_name").await?;
-                    for n in &names { self.send_data_row(n).await?; }
-                }
-                self.send_command_complete("SELECT", names.len() as u32).await?;
+                // Other pg_catalog — return empty with proper schema
+                self.send_empty_result().await?;
+                self.send_command_complete("SELECT", 0).await?;
             } else {
                 self.send_error(&format!("表 '{}' 不存在", tbl)).await?;
             }
