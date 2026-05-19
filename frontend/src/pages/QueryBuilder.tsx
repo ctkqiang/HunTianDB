@@ -39,8 +39,9 @@ export function QueryBuilder() {
     });
   }, []);
 
-  const executeQuery = useCallback(async (querySql?: string) => {
-    const trimmed = (querySql ?? sql).trim();
+  const executeQuery = useCallback(async (querySql?: string | null) => {
+    const raw = typeof querySql === "string" ? querySql : sql;
+    const trimmed = (raw ?? "").trim();
     if (!trimmed) return;
     setLoading(true); setError(null); setSuggestion(null); setResult(null);
     if (querySql) setSql(querySql);
