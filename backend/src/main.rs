@@ -52,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let db = pg_db.clone();
             tokio::spawn(async move {
                 tracing::debug!("PG 连接: {}", peer);
-                let mut proto = huntiandb::server::postgres_protocol::PostgresProtocol::new(stream);
+                let mut proto = huntiandb::server::postgres_protocol::PostgresProtocol::new(stream, db.clone());
                 if let Err(e) = proto.handle_connection().await {
                     tracing::warn!("PG 连接错误 ({}): {}", peer, e);
                 }
