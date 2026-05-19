@@ -105,12 +105,15 @@ async fn query_handler(
     // INSERT
     else if sql_upper.starts_with("INSERT INTO ") {
         match parse_insert(&sql) {
-            Ok((tbl_name, values)) => {
-                let tbl = db.get_table_mut(&tbl_name).ok_or_else(|| (StatusCode::BAD_REQUEST, format!("表 '{}' 不存在", tbl_name)))?;
-                match db.log_insert(&tbl_name, values) {
-                    Ok(()) => Ok(Json(QueryResponse { columns: vec!["result".into()], rows: vec![serde_json::json!({"result": "INSERT 1"})], elapsed_ms: elapsed() })),
-                    Err(e) => Err((StatusCode::BAD_REQUEST, e)),
+            Ok((tbl_name, all_rows)) => {
+                let mut inserted = 0usize;
+                for values in &all_rows {
+                    match db.log_insert(&tbl_name, values.clone()) {
+                        Ok(()) => inserted += 1,
+                        Err(e) => { if all_rows.len() == 1 { return Err((StatusCode::BAD_REQUEST, e)); } }
+                    }
                 }
+                Ok(Json(QueryResponse { columns: vec!["result".into()], rows: vec![serde_json::json!({"result": format!("INSERT {}", inserted)})], elapsed_ms: elapsed() }))
             }
             Err(e) => Err((StatusCode::BAD_REQUEST, e)),
         }
@@ -186,8 +189,8 @@ fn parse_create_table(sql: &str) -> Result<(String, Vec<ColumnDef>), String> {
     Ok((name, columns))
 }
 
-fn parse_insert(sql: &str) -> Result<(String, Vec<serde_json::Value>), String> {
-    // INSERT INTO name (cols) VALUES (vals)
+fn parse_insert(sql: &str) -> Result<(String, Vec<Vec<serde_json::Value>>), String> {
+    // INSERT INTO name (cols) VALUES (v1,v2), (v3,v4), ...
     let rest = sql.trim()
         .trim_start_matches("INSERT ").trim_start_matches("insert ")
         .trim_start_matches("INTO ").trim_start_matches("into ")
@@ -196,27 +199,31 @@ fn parse_insert(sql: &str) -> Result<(String, Vec<serde_json::Value>), String> {
     let name = rest[..name_end].trim().trim_matches('"').to_string();
     let after_name = rest[name_end..].trim();
 
-    // Find VALUES (...)
     let val_idx = after_name.to_uppercase().find("VALUES").ok_or("缺少 VALUES")?;
     let val_str = after_name[val_idx + 6..].trim();
-    let lp = val_str.find('(').ok_or("缺少 '('")?;
-    let rp = val_str.rfind(')').ok_or("缺少 ')'")?;
-    let vals: Vec<serde_json::Value> = val_str[lp+1..rp]
-        .split(',')
-        .map(|v| {
-            let v = v.trim().trim_matches('\'');
-            // Try parse as number, else string
-            if let Ok(n) = v.parse::<i64>() {
-                serde_json::json!(n)
-            } else if let Ok(f) = v.parse::<f64>() {
-                serde_json::json!(f)
-            } else if v.eq_ignore_ascii_case("NULL") {
-                serde_json::Value::Null
-            } else {
-                serde_json::json!(v)
-            }
-        })
-        .collect();
 
-    Ok((name, vals))
+    // Parse multiple (val1,val2), (val3,val4), ...
+    let mut all_rows: Vec<Vec<serde_json::Value>> = Vec::new();
+    let mut depth = 0i32;
+    let mut row_start = 0usize;
+    let bytes = val_str.as_bytes();
+
+    for (i, &b) in bytes.iter().enumerate() {
+        if b == b'(' { depth += 1; if depth == 1 { row_start = i + 1; } }
+        else if b == b')' { depth -= 1; if depth == 0 {
+            let row_str = std::str::from_utf8(&bytes[row_start..i]).unwrap_or("");
+            let vals: Vec<serde_json::Value> = row_str.split(',')
+                .map(|v| {
+                    let v = v.trim().trim_matches('\'');
+                    if v.eq_ignore_ascii_case("NULL") || v.is_empty() { serde_json::Value::Null }
+                    else if let Ok(n) = v.parse::<i64>() { serde_json::json!(n) }
+                    else if let Ok(f) = v.parse::<f64>() { serde_json::json!(f) }
+                    else { serde_json::json!(v) }
+                })
+                .collect();
+            if !vals.is_empty() { all_rows.push(vals); }
+        }}
+    }
+    if all_rows.is_empty() { return Err("未找到有效VALUES".into()); }
+    Ok((name, all_rows))
 }

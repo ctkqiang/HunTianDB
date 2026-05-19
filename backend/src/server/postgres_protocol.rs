@@ -110,14 +110,18 @@ impl PostgresProtocol {
                 Err(e) => self.send_error(&e).await?,
             }
         } else if su.starts_with("INSERT INTO ") {
-            let vals = self.parse_insert_values(s);
+            let all_vals = self.parse_insert_values(s);
             let tbl_name = self.extract_insert_table(s);
-            let result = { self.db.write().get_table_mut(&tbl_name).map(|t| t.insert(vals)) };
-            match result {
-                Some(Ok(())) => self.send_command_complete("INSERT", 1).await?,
-                Some(Err(e)) => self.send_error(&e).await?,
-                None => self.send_error(&format!("表 '{}' 不存在", tbl_name)).await?,
+            let mut inserted = 0usize;
+            for vals in &all_vals {
+                let result = { self.db.write().get_table_mut(&tbl_name).map(|t| t.insert(vals.clone())) };
+                match result {
+                    Some(Ok(())) => inserted += 1,
+                    _ => {}
+                }
             }
+            if inserted > 0 { self.send_command_complete("INSERT", inserted as u32).await?; }
+            else { self.send_error(&format!("表 '{}' 不存在或插入失败", tbl_name)).await?; }
         } else if su.starts_with("SELECT") || su.starts_with("SELECT*") {
             let tbl = self.extract_table_name(s);
             let limit = self.extract_limit(s).unwrap_or(100).min(1000);
@@ -204,21 +208,28 @@ impl PostgresProtocol {
         s.split(|c: char| c==' ' || c=='(').next().unwrap_or("events").trim_matches('"').to_lowercase()
     }
 
-    fn parse_insert_values(&self, sql: &str) -> Vec<serde_json::Value> {
+    fn parse_insert_values(&self, sql: &str) -> Vec<Vec<serde_json::Value>> {
+        let mut all_rows = Vec::new();
         if let Some(lp) = sql.find("VALUES") {
-            let val = &sql[lp+6..].trim();
-            if let Some(l) = val.find('(') {
-                if let Some(r) = val.rfind(')') {
-                    return val[l+1..r].split(',').map(|v| {
-                        let v = v.trim().trim_matches('\'');
-                        if let Ok(n) = v.parse::<i64>() { serde_json::json!(n) }
-                        else if v.eq_ignore_ascii_case("NULL") { serde_json::Value::Null }
-                        else { serde_json::json!(v) }
-                    }).collect();
-                }
+            let val_str = &sql[lp+6..].trim();
+            let bytes = val_str.as_bytes();
+            let mut depth = 0i32; let mut row_start = 0usize;
+            for (i, &b) in bytes.iter().enumerate() {
+                if b == b'(' { depth += 1; if depth == 1 { row_start = i + 1; } }
+                else if b == b')' { depth -= 1; if depth == 0 {
+                    if let Ok(row_str) = std::str::from_utf8(&bytes[row_start..i]) {
+                        let vals: Vec<serde_json::Value> = row_str.split(',').map(|v| {
+                            let v = v.trim().trim_matches('\'');
+                            if v.eq_ignore_ascii_case("NULL") || v.is_empty() { serde_json::Value::Null }
+                            else if let Ok(n) = v.parse::<i64>() { serde_json::json!(n) }
+                            else { serde_json::json!(v) }
+                        }).collect();
+                        if !vals.is_empty() { all_rows.push(vals); }
+                    }
+                }}
             }
         }
-        vec![]
+        all_rows
     }
 
     fn extract_quoted(&self, sql: &str, keyword: &str) -> Option<String> {
