@@ -6,7 +6,7 @@ export function Settings() {
   const { t } = useT();
 
   const info = [
-    [t("version"), "v1.0.0"], [t("pg_port"), "5409 (TLS 1.3)"], [t("rest_port"), "5001"],
+    [t("version"), "v1.0.0"], [t("pg_port"), "5408 (TLS 1.3)"], [t("rest_port"), "58409"],
     [t("storage"), "Parquet + Arrow 53"], [t("sql_parser"), "Snappy / LZ4 / Zstd"],
     [t("encryption"), "AES-256-GCM (HKDF-SHA256)"],
   ];

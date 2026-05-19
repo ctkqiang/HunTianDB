@@ -23,25 +23,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 初始化存储引擎
     let _ring_buffer = Arc::new(
-        huntiandb::storage::RingBuffer::new(1_000_000) // 1M 容量
+        huntiandb::storage::RingBuffer::new(1_000_000), // 1M 容量
     );
-    let _wal = Arc::new(
-        huntiandb::storage::WriteAheadLog::new(
-            &config.encryption_key,
-            config.data_dir.join("wal"),
-            config.wal_sync_interval_ms,
-            config.wal_batch_size,
-        )?
-    );
+    let _wal = Arc::new(huntiandb::storage::WriteAheadLog::new(
+        &config.encryption_key,
+        config.data_dir.join("wal"),
+        config.wal_sync_interval_ms,
+        config.wal_batch_size,
+    )?);
     tracing::info!("存储引擎已初始化 (RingBuffer 1M, WAL ready)");
 
     // 初始化内存数据库引擎
     let db = Arc::new(parking_lot::RwLock::new(
-        huntiandb::server::database::Database::new(config.data_dir.clone())
+        huntiandb::server::database::Database::new(config.data_dir.clone()),
     ));
     tracing::info!("数据库引擎已初始化");
 
-    // 启动 PostgreSQL 线协议监听器（明文TCP，端口5409）
+    // 启动 PostgreSQL 线协议监听器（明文TCP，端口5408）
     let pg_port = config.postgres_port;
     let pg_db = db.clone();
     let pg_handle = tokio::spawn(async move {
@@ -55,7 +53,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let (stream, peer) = listener.accept().await.unwrap();
             let db = pg_db.clone();
             tokio::spawn(async move {
-                let mut proto = huntiandb::server::postgres_protocol::PostgresProtocol::new(stream, db.clone());
+                let mut proto =
+                    huntiandb::server::postgres_protocol::PostgresProtocol::new(stream, db.clone());
                 if let Err(e) = proto.handle_connection().await {
                     tracing::debug!("PG 连接结束 ({}): {}", peer, e);
                 }
@@ -85,12 +84,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("REST API 监听器启动: {} (SO_REUSEADDR)", rest_addr);
 
     let rest_handle = tokio::spawn(async move {
-        axum::serve(rest_listener, api_router).await
+        axum::serve(rest_listener, api_router)
+            .await
             .map_err(|e| tracing::error!("REST 服务异常: {}", e))
             .ok();
     });
 
-    tracing::info!("混天DB 启动完成 — PG:{}, REST:{}", config.postgres_port, config.rest_port);
+    tracing::info!(
+        "混天DB 启动完成 — PG:{}, REST:{}",
+        config.postgres_port,
+        config.rest_port
+    );
     tracing::info!("可用 psql -h localhost -p {} 连接", config.postgres_port);
 
     // 优雅关闭
