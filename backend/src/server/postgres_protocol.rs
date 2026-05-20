@@ -773,3 +773,99 @@ impl PostgresProtocol {
         String::from_utf8_lossy(&b).into_owned()
     }
 }
+
+/// Execute aggregate query against the database engine.
+/// Returns Some(Ok(cols, rows)) on success, Some(Err(msg)) on failure, None if not an aggregate query.
+fn pg_aggregate_query(
+    db: &SharedDb,
+    sql: &str,
+) -> Option<Result<(Vec<String>, Vec<serde_json::Value>), String>> {
+    let su = sql.to_uppercase();
+    let db = db.read();
+
+    let from_idx = su.find("FROM ")?;
+    let after_from = su[from_idx + 5..].trim();
+    let tbl_name = after_from
+        .split_whitespace()
+        .next()?
+        .trim_matches('"')
+        .to_string();
+    let tbl = db.get_table(&tbl_name)?;
+
+    let agg_fns = ["COUNT", "SUM", "AVG", "MIN", "MAX"];
+    for agg_fn in &agg_fns {
+        let prefix = format!("SELECT {agg_fn}(");
+        if let Some(after_prefix) = su.strip_prefix(&prefix) {
+            let col_name = if *agg_fn == "COUNT" && after_prefix.trim_start().starts_with("*)") {
+                "*".to_string()
+            } else if let Some(rp) = after_prefix.find(')') {
+                after_prefix[..rp].trim().to_string()
+            } else {
+                continue;
+            };
+
+            let agg_col_label = format!("{agg_fn}({col_name})");
+            let row = match agg_fn.as_ref() {
+                "COUNT" if col_name == "*" => {
+                    serde_json::json!({&agg_col_label: tbl.count_all()})
+                }
+                "COUNT" => {
+                    serde_json::json!({&agg_col_label: tbl.count_col(&col_name)})
+                }
+                "SUM" => {
+                    serde_json::json!({&agg_col_label: tbl.sum_col(&col_name)})
+                }
+                "AVG" => {
+                    serde_json::json!({&agg_col_label: tbl.avg_col(&col_name)})
+                }
+                "MIN" => {
+                    serde_json::json!({&agg_col_label: tbl.min_col(&col_name)})
+                }
+                "MAX" => {
+                    serde_json::json!({&agg_col_label: tbl.max_col(&col_name)})
+                }
+                _ => return None,
+            };
+            return Some(Ok((vec![agg_col_label], vec![row])));
+        }
+    }
+
+    // GROUP BY: SELECT col, AGG(col2) FROM table GROUP BY col
+    if let Some(gb_pos) = su.find(" GROUP BY ") {
+        let select_part = su[7..gb_pos].trim();
+        let after_gb = su[gb_pos + 10..].trim();
+        let group_col = after_gb
+            .split(" ORDER BY ").next().unwrap_or("")
+            .split(" LIMIT ").next().unwrap_or("")
+            .trim().to_string();
+
+        for agg_fn in &agg_fns {
+            let agg_prefix = format!("{agg_fn}(");
+            if let Some(agg_start) = select_part.find(&agg_prefix) {
+                let after_agg = &select_part[agg_start + agg_prefix.len()..];
+                let agg_col = if *agg_fn == "COUNT" && after_agg.trim_start().starts_with("*)") {
+                    "*".to_string()
+                } else if let Some(rp) = after_agg.find(')') {
+                    after_agg[..rp].trim().to_string()
+                } else {
+                    continue;
+                };
+
+                let results = tbl.group_by_agg(&group_col, &agg_col, agg_fn);
+                let cols = vec![group_col.clone(), format!("{agg_fn}({agg_col})")];
+                let rows: Vec<serde_json::Value> = results
+                    .into_iter()
+                    .map(|(key, val)| {
+                        serde_json::json!({
+                            &group_col: key,
+                            &format!("{agg_fn}({agg_col})"): val,
+                        })
+                    })
+                    .collect();
+                return Some(Ok((cols, rows)));
+            }
+        }
+    }
+
+    None
+}

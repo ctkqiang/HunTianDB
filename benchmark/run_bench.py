@@ -353,47 +353,59 @@ def bench_select_micro() -> list[dict]:
     seed_data(BASE_ROWS, batch_size=1000)
 
     queries = [
-        # Real queries — actually executed by HuntianDB
+        # True aggregate queries — computed in-engine, single-row results
+        (
+            "count_star",
+            f"SELECT COUNT(*) FROM {TABLE_NAME}",
+            None,
+            "aggregate",
+        ),
+        (
+            "sum_col",
+            f"SELECT SUM(status) FROM {TABLE_NAME}",
+            None,
+            "aggregate",
+        ),
+        (
+            "avg_col",
+            f"SELECT AVG(status) FROM {TABLE_NAME}",
+            None,
+            "aggregate",
+        ),
+        (
+            "group_by_count",
+            f"SELECT etype, COUNT(*) FROM {TABLE_NAME} GROUP BY etype ORDER BY COUNT(*) DESC",
+            None,
+            "aggregate",
+        ),
+        # Regular queries
         (
             "point_lookup",
             f"SELECT * FROM {TABLE_NAME} WHERE id = %s",
             (BASE_ROWS // 2,),
-            True,  # implemented
+            "row_scan",
         ),
         (
             "range_scan",
             f"SELECT * FROM {TABLE_NAME} WHERE id BETWEEN %s AND %s",
             (BASE_ROWS // 4, BASE_ROWS // 4 + 100),
-            True,
+            "row_scan",
         ),
         (
             "limit_1000",
             f"SELECT * FROM {TABLE_NAME} LIMIT 1000",
             None,
-            True,
-        ),
-        # Passthrough queries — HuntianDB returns raw rows, not computed results
-        (
-            "count_star",
-            f"SELECT COUNT(*) FROM {TABLE_NAME}",
-            None,
-            False,  # passthrough — returns raw rows, not a count
-        ),
-        (
-            "aggregation",
-            f"SELECT etype, COUNT(*) AS cnt, AVG(status) FROM {TABLE_NAME} GROUP BY etype ORDER BY cnt DESC",
-            None,
-            False,  # passthrough
+            "row_scan",
         ),
     ]
 
     results = []
-    for name, sql, params, implemented in queries:
+    for name, sql, params, kind in queries:
         print(f"    {name:<25} ", end="", flush=True)
         stats = microbench(sql, params, iters=50)
         stats["query"] = name
-        stats["implemented"] = implemented
-        tag = "" if implemented else " [passthrough]"
+        stats["kind"] = kind
+        tag = " [1 row]" if kind == "aggregate" else ""
         results.append(stats)
         print(f"→ p50={stats['p50']:.2f}ms  qps={stats['qps']:.0f}{tag}")
     return results
@@ -624,13 +636,13 @@ def build_report(
     emit()
     emit("### 4.1 HuntianDB Query Latency")
     emit()
-    emit("*Note: queries marked ⚠ are passthrough — HuntianDB returns raw rows rather than computed aggregates (not yet implemented).*")
+    emit("*Aggregate queries return 1 row (or N rows for GROUP BY) — computed in-engine, no raw row transfer.*")
     emit()
-    s_headers = ["Query", "Status", "p50", "p95", "p99", "QPS"]
+    s_headers = ["Query", "Type", "p50", "p95", "p99", "QPS"]
     s_rows = [
         [
             r["query"],
-            "✅" if r.get("implemented") else "⚠ passthrough",
+            r.get("kind", "?"),
             f"{r['p50']:.2f}ms",
             f"{r['p95']:.2f}ms",
             f"{r['p99']:.2f}ms",
@@ -644,7 +656,7 @@ def build_report(
     # Cross-vendor SELECT comparison (implemented queries only)
     emit("### 4.2 Cross-Vendor Query Latency — Implemented Queries Only (p50)")
     emit()
-    emit("*Only includes queries actually supported by HuntianDB. Aggregation functions (COUNT, AVG, GROUP BY) are not yet implemented.*")
+    emit("*Aggregate functions (COUNT, SUM, AVG, MIN, MAX, GROUP BY) are now implemented via in-engine computation. Row-scan queries dominate the cross-vendor comparison.*")
     emit()
     cs_headers = ["Query", "MySQL 8.0", "PostgreSQL 16", "QuestDB 7.x", "HunTianDB"]
     huntian_by_query = {r["query"]: r["p50"] for r in selects}

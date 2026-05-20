@@ -332,7 +332,10 @@ fn try_aggregate_query(
     // ── GROUP BY: SELECT col, AGG(col2) FROM table GROUP BY col ──
     if let Some(gb_pos) = sql_upper.find(" GROUP BY ") {
         let select_part = sql_upper[7..gb_pos].trim(); // after "SELECT "
-        let group_col = sql_upper[gb_pos + 10..].trim().to_string();
+        let group_col = sql_upper[gb_pos + 10..].trim()
+            .split(" ORDER BY ").next().unwrap_or("")
+            .split(" LIMIT ").next().unwrap_or("")
+            .trim().to_string();
 
         // Parse: "col, AGG(col2)" or "col, COUNT(*)"
         for agg_fn in &simple_aggs {

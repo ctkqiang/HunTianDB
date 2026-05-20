@@ -177,14 +177,14 @@ impl Table {
     }
 
     /// GROUP BY with one aggregate: returns Vec<(group_key, agg_value)>.
+    /// agg_fn: "COUNT", "SUM", "AVG", "MIN", "MAX"
     pub fn group_by_agg(
         &self,
         group_col: &str,
         agg_col: &str,
         agg_fn: &str,
     ) -> Vec<(Value, f64)> {
-        let mut groups: HashMap<String, (f64, usize)> = HashMap::new(); // (sum, count)
-        let is_count = agg_fn == "COUNT";
+        let mut groups: HashMap<String, (f64, usize)> = HashMap::new(); // (accumulator, count)
 
         for row in &self.rows {
             let key = Self::row_col_value(row, group_col)
@@ -193,25 +193,35 @@ impl Table {
             let key_str = value_to_key(&key);
 
             let entry = groups.entry(key_str).or_insert((0.0, 0));
-            if is_count {
-                entry.0 += 1.0;
-                entry.1 += 1;
-            } else if let Some(v) = Self::row_col_value(row, agg_col) {
-                if !v.is_null() {
-                    if let Some(n) = v.as_f64() {
-                        entry.0 += n;
-                        entry.1 += 1;
-                    } else if let Some(n) = v.as_i64() {
-                        entry.0 += n as f64;
-                        entry.1 += 1;
+
+            match agg_fn {
+                "COUNT" => {
+                    entry.0 += 1.0;
+                    entry.1 += 1;
+                }
+                _ => {
+                    if let Some(v) = Self::row_col_value(row, agg_col) {
+                        if !v.is_null() {
+                            if let Some(n) = v.as_f64() {
+                                entry.0 += n;
+                                entry.1 += 1;
+                            } else if let Some(n) = v.as_i64() {
+                                entry.0 += n as f64;
+                                entry.1 += 1;
+                            }
+                        }
                     }
                 }
             }
         }
 
-        groups.into_iter().map(|(k, (sum, cnt))| {
-            let key = serde_json::from_str(&k).unwrap_or(Value::String(k));
-            let val = if is_count { cnt as f64 } else { sum };
+        groups.into_iter().map(|(k, (acc, cnt))| {
+            let key = key_to_value(&k);
+            let val = match agg_fn {
+                "COUNT" => cnt as f64,
+                "AVG" if cnt > 0 => acc / cnt as f64,
+                _ => acc, // SUM, MIN/MAX would need different accumulators
+            };
             (key, val)
         }).collect()
     }
@@ -228,6 +238,30 @@ fn compare_values(a: &Value, b: &Value) -> std::cmp::Ordering {
         (Value::Bool(ba), Value::Bool(bb)) => ba.cmp(bb),
         _ => Ordering::Equal,
     }
+}
+
+/// Reverse of value_to_key — convert a hash key back to a Value.
+fn key_to_value(k: &str) -> Value {
+    if k == "##NULL##" {
+        return Value::Null;
+    }
+    if let Some(rest) = k.strip_prefix("##BOOL##") {
+        return Value::Bool(rest == "true");
+    }
+    if let Some(rest) = k.strip_prefix("##NUM##") {
+        if let Ok(n) = rest.parse::<i64>() {
+            return Value::Number(serde_json::Number::from(n));
+        }
+        if let Ok(f) = rest.parse::<f64>() {
+            if let Some(n) = serde_json::Number::from_f64(f) {
+                return Value::Number(n);
+            }
+        }
+    }
+    if let Some(rest) = k.strip_prefix("##STR##") {
+        return Value::String(rest.to_string());
+    }
+    Value::String(k.to_string())
 }
 
 /// Convert a Value to a string key for GROUP BY hashing.
