@@ -1,31 +1,19 @@
-version: "3.8"
 services:
   huntiandb:
     build:
       context: .
-      dockerfile: backend/Dockerfile
+      dockerfile: Dockerfile
+    container_name: huntiandb
     ports:
-      - "5408:5408"   # PostgreSQL 线协议
-      - "5000:5000"   # REST API
-    environment:
-      - RUST_LOG=info
-      - DB_ENCRYPTION_KEY=${DB_ENCRYPTION_KEY:-dGVzdC1rZXktMzItYnl0ZXMtZm9yLWRldi1vbmx5LQ==}
-      - TLS_CERT_PATH=/certs/server.crt
-      - TLS_KEY_PATH=/certs/server.key
-      - POSTGRES_PORT=5408
-      - REST_PORT=5000
-      - DATA_DIR=/data
-      - JWT_SECRET=${JWT_SECRET:-huntiandb-dev-secret-change-in-prod}
+      - "5408:5408"   # PostgreSQL Wire Protocol
+      - "3000:3000"   # REST API + Web Portal
     volumes:
-      - huntiandb_data:/data
-      - ./certs:/certs:ro
+      - huntian_data:/app/data
+    environment:
+      - DATA_DIR=/app/data
+      - STATIC_DIR=/app/static
+      - RUST_LOG=info
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
 
 volumes:
-  huntiandb_data:
-    driver: local
+  huntian_data:

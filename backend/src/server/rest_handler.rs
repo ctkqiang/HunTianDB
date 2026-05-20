@@ -1,8 +1,15 @@
-//! REST API 处理器 — 完整 SQL 支持 (DDL + DML)
+//! REST API 处理器 — 完整 SQL 支持 (DDL + DML) + 前端静态文件服务
 
-use axum::{extract::State, http::StatusCode, response::Json, routing::{get, post}, Router};
+use axum::{
+    extract::State,
+    http::{StatusCode, Uri},
+    response::Json,
+    routing::{get, post},
+    Router,
+};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tower_http::services::ServeDir;
 use crate::config::Config;
 use crate::server::database::{ColumnDef, SharedDb};
 
@@ -18,7 +25,11 @@ pub struct ApiState {
 #[derive(Serialize)] struct QueryResponse { columns: Vec<String>, rows: Vec<serde_json::Value>, elapsed_ms: f64 }
 
 pub fn build_router(state: Arc<ApiState>) -> Router {
-    Router::new()
+    let static_dir = std::env::var("STATIC_DIR").unwrap_or_else(|_| "./static".into());
+
+    // 独立的路由：API 路径带 state，静态文件不带
+    let api_state = state.clone();
+    let api_routes = Router::new()
         .route("/health", get(health_handler))
         .route("/api/health", get(health_handler))
         .route("/api/auth/login", post(login_handler))
@@ -27,7 +38,31 @@ pub fn build_router(state: Arc<ApiState>) -> Router {
         .route("/api/diag/status", get(diag_status_handler))
         .route("/api/diag/wal", get(diag_wal_handler))
         .route("/api/diag/bench", get(diag_bench_handler))
-        .with_state(state)
+        .with_state(api_state);
+
+    // SPA fallback handler
+    let index_html = std::path::Path::new(&static_dir).join("index.html");
+    let fallback_html = if index_html.exists() {
+        std::fs::read_to_string(&index_html).unwrap_or_else(|_| "HunTianDB API — 前端未加载".into())
+    } else {
+        "HunTianDB API Server — 使用 POST /api/query 执行 SQL".into()
+    };
+
+    // 静态文件 + SPA fallback
+    api_routes
+        .fallback_service(
+            ServeDir::new(&static_dir)
+                .fallback(axum::routing::get(move || {
+                    let html = fallback_html.clone();
+                    async move {
+                        axum::response::Response::builder()
+                            .status(200)
+                            .header("Content-Type", "text/html; charset=utf-8")
+                            .body(axum::body::Body::from(html))
+                            .unwrap()
+                    }
+                }))
+        )
 }
 
 async fn health_handler(State(_state): State<Arc<ApiState>>) -> Json<HealthResponse> {

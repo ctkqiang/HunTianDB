@@ -74,7 +74,7 @@ reqwest = { version = "0.12", features = ["json"] }
 # HTTP REST (Portal后端)
 axum = "0.8"
 tower = "0.5"
-tower-http = { version = "0.6", features = ["cors"] }
+tower-http = { version = "0.6", features = ["cors", "fs"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
