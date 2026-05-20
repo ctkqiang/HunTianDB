@@ -1,0 +1,40 @@
+name: 构建并推送到阿里云容器镜像服务
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+
+env:
+  APP_NAME: huntiandb
+  ACR_REGISTRY: crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com
+  ACR_NAMESPACE: nezhawanluoanquan
+  ACR_REPO: huntiandb
+
+jobs:
+  build-and-push:
+    name: 构建并推送到 ACR
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 登录到阿里云 ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ACR_REGISTRY }}
+          username: ${{ secrets.ALIYUN_ACR_USERNAME }}
+          password: ${{ secrets.ALIYUN_ACR_PASSWORD }}
+
+      - name: 设置镜像标签
+        id: meta
+        run: |
+          TAG=${GITHUB_REF_TYPE == 'tag' && GITHUB_REF_NAME || 'latest'}
+          echo "IMAGE_TAG=${TAG}" >> $GITHUB_ENV
+          echo "FULL_IMAGE=${{ env.ACR_REGISTRY }}/${{ env.ACR_NAMESPACE }}/${{ env.ACR_REPO }}:${TAG}" >> $GITHUB_ENV
+
+      - name: 构建并推送镜像
+        run: |
+          docker build -t "$FULL_IMAGE" .
+          docker push "$FULL_IMAGE"
