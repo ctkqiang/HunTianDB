@@ -440,7 +440,7 @@ impl PostgresProtocol {
                             let vals: Vec<serde_json::Value> = row_str
                                 .split(',')
                                 .map(|v| {
-                                    let v = v.trim().trim_matches('\'');
+                                    let v = v.trim().trim_matches('\'').trim_matches('"');
                                     if v.eq_ignore_ascii_case("NULL") || v.is_empty() {
                                         serde_json::Value::Null
                                     } else if let Ok(n) = v.parse::<i64>() {

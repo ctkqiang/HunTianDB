@@ -128,6 +128,29 @@ async fn query_handler(
             Err(e) => Err((StatusCode::BAD_REQUEST, e)),
         }
     }
+    // INSERT INTO users — user management via standard SQL
+    else if sql_upper.starts_with("INSERT INTO USERS") {
+        match parse_insert(&sql) {
+            Ok((_tbl, all_rows)) => {
+                let mut created = 0usize;
+                for values in &all_rows {
+                    let col_names = extract_insert_columns(&sql);
+                    let username = extract_col_val(&col_names, values, "username").unwrap_or_default();
+                    let role = extract_col_val(&col_names, values, "role").unwrap_or_else(|| "reader".into());
+                    let password = extract_col_val(&col_names, values, "password").unwrap_or_else(|| "changeme".into());
+                    if !username.is_empty() {
+                        match db.create_user(&username, &password, &role) {
+                            Ok(()) => created += 1,
+                            Err(e) => { if all_rows.len() == 1 { return Err((StatusCode::BAD_REQUEST, e)); } }
+                        }
+                    }
+                }
+                db.flush_wal();
+                Ok(Json(QueryResponse { columns: vec!["result".into()], rows: vec![serde_json::json!({"result": format!("INSERT {}", created)})], elapsed_ms: elapsed() }))
+            }
+            Err(e) => Err((StatusCode::BAD_REQUEST, e)),
+        }
+    }
     // INSERT
     else if sql_upper.starts_with("INSERT INTO ") {
         match parse_insert(&sql) {
@@ -367,6 +390,40 @@ fn try_aggregate_query(
     None
 }
 
+/// Extract column names from an INSERT INTO statement.
+/// e.g. `INSERT INTO users (username, role) VALUES ...` → `["username", "role"]`
+fn extract_insert_columns(sql: &str) -> Vec<String> {
+    let binding = sql.to_uppercase();
+    let rest = binding
+        .trim_start_matches("INSERT INTO ")
+        .trim_start_matches("insert into ");
+    // Skip table name
+    let after_table = rest.trim_start_matches(|c: char| c != '(' && c != ' ');
+    let after_table = after_table.trim();
+    if !after_table.starts_with('(') { return vec![]; }
+    let rp = after_table.find(')').unwrap_or(after_table.len());
+    after_table[1..rp]
+        .split(',')
+        .map(|c| c.trim().trim_matches('"').trim_matches('\'').to_lowercase())
+        .collect()
+}
+
+/// Extract a column value by name from an INSERT row.
+fn extract_col_val(col_names: &[String], values: &[serde_json::Value], target: &str) -> Option<String> {
+    let idx = col_names.iter().position(|c| c == target)?;
+    let v = values.get(idx)?;
+    if v.is_null() { return None; }
+    if let Some(s) = v.as_str() {
+        Some(s.to_string())
+    } else if let Some(n) = v.as_i64() {
+        Some(n.to_string())
+    } else if let Some(n) = v.as_f64() {
+        Some(n.to_string())
+    } else {
+        Some(v.to_string())
+    }
+}
+
 fn parse_insert(sql: &str) -> Result<(String, Vec<Vec<serde_json::Value>>), String> {
     // INSERT INTO name (cols) VALUES (v1,v2), (v3,v4), ...
     let rest = sql.trim()
@@ -392,7 +449,7 @@ fn parse_insert(sql: &str) -> Result<(String, Vec<Vec<serde_json::Value>>), Stri
             let row_str = std::str::from_utf8(&bytes[row_start..i]).unwrap_or("");
             let vals: Vec<serde_json::Value> = row_str.split(',')
                 .map(|v| {
-                    let v = v.trim().trim_matches('\'');
+                    let v = v.trim().trim_matches('\'').trim_matches('"');
                     if v.eq_ignore_ascii_case("NULL") || v.is_empty() { serde_json::Value::Null }
                     else if let Ok(n) = v.parse::<i64>() { serde_json::json!(n) }
                     else if let Ok(f) = v.parse::<f64>() { serde_json::json!(f) }
