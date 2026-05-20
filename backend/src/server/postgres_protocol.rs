@@ -520,13 +520,6 @@ impl PostgresProtocol {
         Ok(sql)
     }
 
-    async fn send_authentication_ok(&mut self) -> HunTianResult<()> {
-        self.stream
-            .write_all(&[b'R', 0, 0, 0, 8, 0, 0, 0, 0])
-            .await?;
-        Ok(())
-    }
-
     async fn send_auth_cleartext_password(&mut self) -> HunTianResult<()> {
         // AuthenticationCleartextPassword: type 'R', length 8, auth type 3
         self.stream
