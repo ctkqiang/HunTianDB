@@ -1,24 +1,33 @@
 # ── 混天DB 统一 Docker 镜像 ──
-# 单镜像多端口: 5408 (PG Wire), 3000 (REST + Portal)
-# 用法: docker run -p 5408:5408 -p 3000:3000 huntiandb
+# 单镜像多端口:
+#   5408 — PostgreSQL Wire Protocol
+#   5490 — Prometheus /metrics + /health + /ready
+#   3000 — REST API + Web Portal (静态文件)
+#
+# 用法: docker run -p 5408:5408 -p 5490:5490 -p 3000:3000 huntiandb
 
 # ── Stage 1: 后端构建 ──
-FROM rust:1.85-alpine AS backend-builder
+FROM rust:1.88-alpine AS backend-builder
+
 RUN apk add --no-cache musl-dev pkgconfig openssl-dev
+
 WORKDIR /build
+
 # 工作空间根配置
 COPY Cargo.toml Cargo.lock ./
-# 后端 crate
 COPY backend/Cargo.toml backend/
 COPY backend/src/ backend/src/
+
 RUN cargo build --release --bin huntiandb && \
     strip target/release/huntiandb
 
 # ── Stage 2: 前端构建 ──
 FROM oven/bun:1-alpine AS frontend-builder
+
 WORKDIR /build
 COPY frontend/package.json frontend/bun.lock ./
 RUN bun install --frozen-lockfile
+
 COPY frontend/ ./
 RUN bun run build
 
@@ -37,14 +46,16 @@ COPY --from=backend-builder /build/target/release/huntiandb /app/
 # 前端静态文件
 COPY --from=frontend-builder /build/dist /app/static
 
-# 数据目录
 RUN mkdir -p /app/data
 
 ENV DATA_DIR=/app/data
 ENV STATIC_DIR=/app/static
+ENV REST_PORT=3000
+ENV METRICS_PORT=5490
+ENV POSTGRES_PORT=5408
 ENV RUST_LOG=info
 
-EXPOSE 5408 3000
+EXPOSE 5408 3000 5490
 
 HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
     CMD curl -f http://localhost:3000/api/health || exit 1

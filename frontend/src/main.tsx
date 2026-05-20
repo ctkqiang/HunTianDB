@@ -29,7 +29,7 @@ function ThemedApp() {
   useEffect(() => { document.documentElement.setAttribute("theme-mode", resolved); }, [resolved]);
 
   return (
-    <ConfigProvider>
+    <ConfigProvider globalConfig={{}}>
       <I18nProvider>
         <App />
       </I18nProvider>

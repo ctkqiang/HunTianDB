@@ -7,13 +7,21 @@ services:
     ports:
       - "5408:5408"   # PostgreSQL Wire Protocol
       - "3000:3000"   # REST API + Web Portal
+      - "5490:5490"   # Prometheus /metrics + /health + /ready
     volumes:
       - huntian_data:/app/data
     environment:
       - DATA_DIR=/app/data
       - STATIC_DIR=/app/static
+      - REST_PORT=3000
+      - METRICS_PORT=5490
+      - POSTGRES_PORT=5408
       - RUST_LOG=info
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
 
 volumes:
   huntian_data:
