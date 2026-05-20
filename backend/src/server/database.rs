@@ -2,8 +2,12 @@
 //!
 //! INSERT 时同步写 WAL (Write-Ahead Log)，启动时回放 WAL 恢复数据。
 //! 断电/重启不丢数据。
+//!
+//! WAL 格式 (v2, binary): [4字节 LE record_length][bincode 序列化的 WalOp]
+//! v1 (legacy JSON) 在 replay 时自动检测并兼容。
 
 use std::collections::HashMap;
+use std::io::{BufWriter, Write};
 use std::sync::Arc;
 use parking_lot::RwLock;
 use serde_json::Value;
@@ -88,6 +92,8 @@ pub struct Database {
     pub users: HashMap<String, DbUser>,
     pub data_dir: std::path::PathBuf,
     pub wal_enabled: bool,
+    wal_writer: Option<BufWriter<std::fs::File>>,
+    wal_ops_since_flush: u32,
 }
 
 impl Database {
@@ -101,7 +107,23 @@ impl Database {
     /// @param wal_enabled 是否启用 WAL 持久化与启动回放。
     /// @return 已初始化并完成 WAL 回放（若启用）的 Database 实例。
     pub fn new(data_dir: std::path::PathBuf, wal_enabled: bool) -> Self {
-        let mut db = Self { tables: HashMap::new(), users: HashMap::new(), data_dir, wal_enabled };
+        let wal_writer = if wal_enabled {
+            let wal_path = data_dir.join("recovery.log");
+            std::fs::OpenOptions::new()
+                .create(true).append(true)
+                .open(&wal_path)
+                .ok()
+                .map(|f| BufWriter::with_capacity(64 * 1024, f)) // 64KB buffer — batches writes
+        } else { None };
+
+        let mut db = Self {
+            tables: HashMap::new(),
+            users: HashMap::new(),
+            data_dir,
+            wal_enabled,
+            wal_writer,
+            wal_ops_since_flush: 0,
+        };
         // 预置默认用户
         for (user, pass, role) in [
             ("admin", "admin123", "admin"), ("root", "root123", "admin"),
