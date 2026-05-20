@@ -148,7 +148,7 @@ async fn query_handler(
     // SELECT
     else if sql_upper.starts_with("SELECT ") || sql_upper.starts_with("SELECT*") {
         // Try aggregate query first (COUNT, SUM, AVG, MIN, MAX, GROUP BY)
-        if let Some(agg_result) = try_aggregate_query(&db, &sql_upper) {
+        if let Some(agg_result) = try_aggregate_query(&mut db, &sql_upper) {
             return agg_result.map(|(cols, rows)| Json(QueryResponse { columns: cols, rows, elapsed_ms: elapsed() }));
         }
 
@@ -278,12 +278,12 @@ fn parse_create_table(sql: &str) -> Result<(String, Vec<ColumnDef>), String> {
 /// `Some(Err(...))` if recognized but failed (e.g. table not found),
 /// `None` if the SQL does not match any aggregate pattern.
 fn try_aggregate_query(
-    db: &crate::server::database::Database,
+    db: &mut crate::server::database::Database,
     sql_upper: &str,
 ) -> Option<Result<(Vec<String>, Vec<serde_json::Value>), (StatusCode, String)>> {
     // Extract table name
     let tbl_name = extract_table(sql_upper)?.trim_matches('"').to_string();
-    let tbl = db.get_table(&tbl_name)?;
+    let tbl = db.get_table_mut(&tbl_name)?;
 
     // ── Simple aggregates: SELECT AGG(col) FROM table ──
     let simple_aggs = ["COUNT", "SUM", "AVG", "MIN", "MAX"];
@@ -305,15 +305,15 @@ fn try_aggregate_query(
                     vec![serde_json::json!({format!("COUNT(*)"): cnt})]
                 }
                 "COUNT" => {
-                    let cnt = tbl.count_col(&col_name);
+                    let cnt = tbl.count_fast(&col_name);
                     vec![serde_json::json!({format!("COUNT({col_name})"): cnt})]
                 }
                 "SUM" => {
-                    let val = tbl.sum_col(&col_name);
+                    let val = tbl.sum_fast(&col_name);
                     vec![serde_json::json!({format!("SUM({col_name})"): val})]
                 }
                 "AVG" => {
-                    let val = tbl.avg_col(&col_name);
+                    let val = tbl.avg_fast(&col_name);
                     vec![serde_json::json!({format!("AVG({col_name})"): val})]
                 }
                 "MIN" => {

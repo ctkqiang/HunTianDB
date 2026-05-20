@@ -782,7 +782,7 @@ fn pg_aggregate_query(
     sql: &str,
 ) -> Option<Result<(Vec<String>, Vec<serde_json::Value>), String>> {
     let su = sql.to_uppercase();
-    let db = db.read();
+    let mut db = db.write();
 
     let from_idx = su.find("FROM ")?;
     let after_from = su[from_idx + 5..].trim();
@@ -791,7 +791,7 @@ fn pg_aggregate_query(
         .next()?
         .trim_matches('"')
         .to_string();
-    let tbl = db.get_table(&tbl_name)?;
+    let tbl = db.get_table_mut(&tbl_name)?;
 
     let agg_fns = ["COUNT", "SUM", "AVG", "MIN", "MAX"];
     for agg_fn in &agg_fns {
@@ -811,13 +811,17 @@ fn pg_aggregate_query(
                     serde_json::json!({&agg_col_label: tbl.count_all()})
                 }
                 "COUNT" => {
-                    serde_json::json!({&agg_col_label: tbl.count_col(&col_name)})
+                    // Vectorized: use column cache for fast non-null count
+                    let count = tbl.count_fast(&col_name);
+                    serde_json::json!({&agg_col_label: count})
                 }
                 "SUM" => {
-                    serde_json::json!({&agg_col_label: tbl.sum_col(&col_name)})
+                    let sum = tbl.sum_fast(&col_name);
+                    serde_json::json!({&agg_col_label: sum})
                 }
                 "AVG" => {
-                    serde_json::json!({&agg_col_label: tbl.avg_col(&col_name)})
+                    let avg = tbl.avg_fast(&col_name);
+                    serde_json::json!({&agg_col_label: avg})
                 }
                 "MIN" => {
                     serde_json::json!({&agg_col_label: tbl.min_col(&col_name)})
