@@ -464,14 +464,17 @@ def _count_wal_records(data: bytes) -> int:
         # v1 JSON — count lines
         count = sum(1 for line in data.split(b"\n") if line.strip())
     elif data[0] == 0x03:
-        # v3 zstd — [0x03][4B uncomp_len][4B comp_len][zstd]
-        pos = 1
-        while pos + 8 <= len(data):
-            comp_len = int.from_bytes(data[pos + 4 : pos + 8], "little")
-            if comp_len == 0 or pos + 8 + comp_len > len(data):
+        # v3 zstd — sequence of [0x03][4B uncomp_len][4B comp_len][zstd]
+        pos = 0
+        while pos + 9 <= len(data):
+            if data[pos] != 0x03:
+                break
+            uncomp_len = int.from_bytes(data[pos + 1 : pos + 5], "little")
+            comp_len = int.from_bytes(data[pos + 5 : pos + 9], "little")
+            if comp_len == 0 or uncomp_len == 0 or pos + 9 + comp_len > len(data):
                 break
             count += 1
-            pos += 8 + comp_len
+            pos += 9 + comp_len
     else:
         # v2 uncompressed bincode — [4B len][bincode]
         pos = 0

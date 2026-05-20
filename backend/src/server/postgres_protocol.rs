@@ -190,7 +190,7 @@ impl PostgresProtocol {
             let cols = self.parse_columns(&rest[lp..]);
             let result = { self.db.write().create_table(&name, cols) };
             match result {
-                Ok(()) => self.send_command_complete("CREATE", 0).await?,
+                Ok(()) => { self.db.write().flush_wal(); self.send_command_complete("CREATE", 0).await? },
                 Err(e) => self.send_error(&e).await?,
             }
         } else if su.starts_with("DROP TABLE ") {
@@ -201,7 +201,7 @@ impl PostgresProtocol {
                 .trim_end_matches(';');
             let result = { self.db.write().drop_table(name) };
             match result {
-                Ok(()) => self.send_command_complete("DROP", 0).await?,
+                Ok(()) => { self.db.write().flush_wal(); self.send_command_complete("DROP", 0).await? },
                 Err(e) => self.send_error(&e).await?,
             }
         } else if su.starts_with("INSERT INTO ") {
@@ -216,6 +216,7 @@ impl PostgresProtocol {
                 }
             }
             if inserted > 0 {
+                { self.db.write().flush_wal(); }
                 self.send_command_complete("INSERT", inserted as u32)
                     .await?;
             } else {

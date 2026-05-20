@@ -114,7 +114,7 @@ async fn query_handler(
     if sql_upper.starts_with("DROP TABLE ") {
         let tbl_name = sql_upper.trim_start_matches("DROP TABLE ").trim().trim_matches('"');
         match db.drop_table(tbl_name) {
-            Ok(()) => Ok(Json(QueryResponse { columns: vec!["result".into()], rows: vec![serde_json::json!({"result": format!("表 '{}' 已删除", tbl_name)})], elapsed_ms: elapsed() })),
+            Ok(()) => { db.flush_wal(); Ok(Json(QueryResponse { columns: vec!["result".into()], rows: vec![serde_json::json!({"result": format!("表 '{}' 已删除", tbl_name)})], elapsed_ms: elapsed() })) },
             Err(e) => Err((StatusCode::BAD_REQUEST, e)),
         }
     }
@@ -122,7 +122,7 @@ async fn query_handler(
     else if sql_upper.starts_with("CREATE TABLE ") {
         match parse_create_table(&sql) {
             Ok((name, columns)) => match db.create_table(&name, columns) {
-                Ok(()) => Ok(Json(QueryResponse { columns: vec!["result".into()], rows: vec![serde_json::json!({"result": format!("表 '{}' 已创建 ({} 列)", name, db.get_table(&name).unwrap().columns.len())})], elapsed_ms: elapsed() })),
+                Ok(()) => { db.flush_wal(); Ok(Json(QueryResponse { columns: vec!["result".into()], rows: vec![serde_json::json!({"result": format!("表 '{}' 已创建 ({} 列)", name, db.get_table(&name).unwrap().columns.len())})], elapsed_ms: elapsed() })) },
                 Err(e) => Err((StatusCode::BAD_REQUEST, e)),
             },
             Err(e) => Err((StatusCode::BAD_REQUEST, e)),
@@ -139,6 +139,7 @@ async fn query_handler(
                         Err(e) => { if all_rows.len() == 1 { return Err((StatusCode::BAD_REQUEST, e)); } }
                     }
                 }
+                db.flush_wal();
                 Ok(Json(QueryResponse { columns: vec!["result".into()], rows: vec![serde_json::json!({"result": format!("INSERT {}", inserted)})], elapsed_ms: elapsed() }))
             }
             Err(e) => Err((StatusCode::BAD_REQUEST, e)),
