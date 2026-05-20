@@ -10,7 +10,7 @@
 
 ```bash
 # 国际 (Docker Hub)
-docker pull ctkqiang/huntiandb:952d3f4e19adb464cd5da2d02edeed1d9a89781e
+docker pull ctkqiang/huntianandb:v0.1.0.beta
 
 # 中国 (阿里云容器镜像)
 docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.0.beta
@@ -24,11 +24,11 @@ docker run -d \
 
 镜像暴露三个端口：
 
-| 端口 | 协议 | 说明 |
-|------|------|------|
-| `5408` | PostgreSQL Wire Protocol v3.0 | `psql`、DBeaver、JDBC、psycopg2 连接 |
-| `3000` | HTTP | REST API + Web Portal（仪表板、SQL 查询构建器） |
-| `5490` | HTTP | Prometheus `/metrics` + `/health` + `/ready` |
+| 端口   | 协议                          | 说明                                            |
+| ------ | ----------------------------- | ----------------------------------------------- |
+| `5408` | PostgreSQL Wire Protocol v3.0 | `psql`、DBeaver、JDBC、psycopg2 连接            |
+| `3000` | HTTP                          | REST API + Web Portal（仪表板、SQL 查询构建器） |
+| `5490` | HTTP                          | Prometheus `/metrics` + `/health` + `/ready`    |
 
 ### 源码编译
 
