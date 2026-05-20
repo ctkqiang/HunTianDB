@@ -1,0 +1,60 @@
+name: 垃圾/诈骗内容过滤器
+
+on:
+  issues:
+    types: [opened, edited]
+  pull_request:
+    types: [opened, edited]
+
+jobs:
+  filter:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检测垃圾内容
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 获取标题和正文
+          if [[ "${{ github.event_name }}" == "issues" ]]; then
+            TITLE="${{ github.event.issue.title }}"
+            BODY="${{ github.event.issue.body }}"
+            NUMBER=${{ github.event.issue.number }}
+            REPO="${{ github.repository }}"
+            TYPE="issue"
+          else
+            TITLE="${{ github.event.pull_request.title }}"
+            BODY="${{ github.event.pull_request.body }}"
+            NUMBER=${{ github.event.pull_request.number }}"
+            REPO="${{ github.repository }}"
+            TYPE="pr"
+          fi
+
+          # 合并标题与正文用于匹配
+          TEXT="${TITLE}\n${BODY}"
+          TEXT=$(echo "$TEXT" | tr '[:upper:]' '[:lower:]')
+
+          # 定义禁止匹配的规则
+          PATTERNS=(
+            "crypto" "bitcoin" "ethereum" "nft" "web3" "metamask"
+            "shit" "fuck" "stupid" "idiot"
+            "buy now" "limited offer" "send money" "wallet address"
+            "0x[a-f0-9]{40}"   # 以太坊地址模式
+            "bc1[a-z0-9]{39}"  # 比特币地址
+            "tron" "solana"
+          )
+
+          FOUND=""
+          for pattern in "${PATTERNS[@]}"; do
+            if echo "$TEXT" | grep -qE "$pattern"; then
+              FOUND="$pattern"
+              break
+            fi
+          done
+
+          if [[ -n "$FOUND" ]]; then
+            echo " 检测到垃圾内容 (匹配规则: $FOUND) - 正在关闭 $TYPE #$NUMBER"
+            gh $TYPE close $NUMBER --comment "此 $TYPE 已被自动关闭，因其内容疑似包含垃圾信息或不当内容（命中规则：\`$FOUND\`）。若为误判，请重新打开并说明情况。"
+            gh $TYPE edit $NUMBER --add-label "spam"
+          else
+            echo " 未发现垃圾内容。"
+          fi
