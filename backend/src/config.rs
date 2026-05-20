@@ -64,6 +64,10 @@ pub struct Config {
     pub slow_query_threshold_ms: u64,
     /// Prometheus 指标端口，0 表示禁用
     pub metrics_port: u16,
+    /// 是否启用 Prometheus 指标端点
+    pub prometheus_enabled: bool,
+    /// Prometheus 指标路径
+    pub prometheus_path: String,
 }
 
 impl Config {
@@ -115,6 +119,8 @@ impl Config {
             page_checksum: env_str("PAGE_CHECKSUM", "true") != "false",
             slow_query_threshold_ms: env_u64("SLOW_QUERY_THRESHOLD_MS", 100),
             metrics_port: env_u16("METRICS_PORT", 9090),
+            prometheus_enabled: env_str("PROMETHEUS_ENABLED", "true") != "false",
+            prometheus_path: env_str("PROMETHEUS_PATH", "/metrics"),
         })
     }
 }

@@ -97,6 +97,49 @@ cd frontend && bun install && bun run dev
 - **事件查看器** -- 分页安全事件表格，支持筛选
 - **设置** -- 系统信息与配置
 
+## 可观测性
+
+混天DB 内置 Prometheus 指标端点，提供生产级监控能力。
+
+**端点：** 默认 `:9090/metrics`（通过 `METRICS_PORT` / `PROMETHEUS_PATH` 配置）
+
+**指标：**
+
+| 指标 | 类型 | 说明 |
+|------|------|------|
+| `huntian_wal_fsync_seconds` | Histogram | WAL fsync 耗时分桶 [0.1ms-100ms] |
+| `huntian_wal_size_bytes` | Gauge | WAL 文件当前大小 |
+| `huntian_wal_replay_lsn` | Gauge | WAL 回放最后 LSN |
+| `huntian_memory_usage_bytes` | Gauge | 进程 RSS 内存 |
+| `huntian_open_fds` | Gauge | 打开的文件描述符数 |
+| `huntian_active_queries` | Gauge | 当前执行中的查询数 |
+| `huntian_slow_queries_total` | Counter | 慢查询总数 |
+| `huntian_checksum_failures_total` | Counter | 校验和失败次数 |
+| `huntian_query_duration_seconds` | Histogram | 查询耗时分桶 [1ms-10s] |
+| `huntian_snapshot_duration_seconds` | Histogram | 快照耗时分桶 [10ms-60s] |
+| `huntian_events_written_total` | Counter | 写入事件总数 |
+
+**健康检查：**
+- `GET /health` — 200 若服务存活
+- `GET /ready` — 200 若数据库已完成恢复并接受查询
+
+```bash
+# 启动时配置指标端口
+METRICS_PORT=9090 PROMETHEUS_ENABLED=true cargo run
+
+# 验证
+curl http://localhost:9090/metrics
+curl http://localhost:9090/health
+```
+
+**配置：**
+
+| 环境变量 | 默认值 | 说明 |
+|----------|--------|------|
+| `PROMETHEUS_ENABLED` | true | 启用/禁用指标端点 |
+| `METRICS_PORT` | 9090 | 指标 HTTP 端口（0=禁用） |
+| `PROMETHEUS_PATH` | /metrics | 指标导出路径 |
+
 ## 文档
 
 | 文档                                          | 语言 |

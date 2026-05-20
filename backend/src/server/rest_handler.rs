@@ -31,7 +31,9 @@ pub fn build_router(state: Arc<ApiState>) -> Router {
     let api_state = state.clone();
     let api_routes = Router::new()
         .route("/health", get(health_handler))
+        .route("/ready", get(ready_handler))
         .route("/api/health", get(health_handler))
+        .route("/api/ready", get(ready_handler))
         .route("/api/auth/login", post(login_handler))
         .route("/api/query", post(query_handler))
         .route("/api/snapshots", get(snapshots_handler))
@@ -67,6 +69,15 @@ pub fn build_router(state: Arc<ApiState>) -> Router {
 
 async fn health_handler(State(_state): State<Arc<ApiState>>) -> Json<HealthResponse> {
     Json(HealthResponse { status: "ok".into(), version: env!("CARGO_PKG_VERSION").into(), uptime_seconds: 0 })
+}
+
+async fn ready_handler(State(_state): State<Arc<ApiState>>) -> (StatusCode, Json<serde_json::Value>) {
+    let ready = crate::metrics::prometheus::is_ready();
+    if ready {
+        (StatusCode::OK, Json(serde_json::json!({"status":"ready"})))
+    } else {
+        (StatusCode::SERVICE_UNAVAILABLE, Json(serde_json::json!({"status":"not ready"})))
+    }
 }
 
 async fn login_handler(
