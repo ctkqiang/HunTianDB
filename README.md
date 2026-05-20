@@ -1,21 +1,21 @@
-# HunTianDB
+# 混天DB
 
-Timeseries security database with PostgreSQL wire protocol compatibility.
+时序安全数据库，兼容 PostgreSQL Wire Protocol v3.0。
 
-## Quick Start
+## 快速开始
 
 ```bash
 cd backend && cargo run --release
 ```
 
-The database starts on two ports:
-- **TCP 5408** -- PostgreSQL Wire Protocol v3.0 (connect with `psql`, `psycopg2`, JDBC, DBeaver)
-- **TCP 3000** -- REST API + Frontend dashboard
+数据库启动后占用两个端口：
+- **TCP 5408** -- PostgreSQL Wire Protocol v3.0（可用 `psql`、`psycopg2`、JDBC、DBeaver 连接）
+- **TCP 3000** -- REST API + 前端仪表板
 
-## Connect
+## 连接
 
 ```bash
-# psql
+# psql 命令行
 psql -h 127.0.0.1 -p 5408 -U admin -d huntiandb
 
 # Python
@@ -23,74 +23,85 @@ import psycopg2
 conn = psycopg2.connect(host="127.0.0.1", port=5408, user="admin", password="admin123", dbname="huntiandb")
 ```
 
-Default credentials: `admin` / `admin123`
+默认账号：`admin` / `admin123`
 
-## SQL Support
+## SQL 支持
 
-| Category | Commands |
-|----------|----------|
+| 类别 | 命令 |
+|------|------|
 | DDL | `CREATE TABLE`, `DROP TABLE`, `DESCRIBE` |
 | DML | `INSERT INTO`, `SELECT` (WHERE, LIMIT, ORDER BY) |
-| Aggregate | `COUNT`, `SUM`, `AVG`, `MIN`, `MAX`, `GROUP BY` |
-| Metadata | `SHOW TABLES`, `SHOW USERS`, `SHOW COLUMNS FROM` |
-| Users | `CREATE USER`, `DROP USER`, `INSERT INTO users` |
+| 聚合 | `COUNT`, `SUM`, `AVG`, `MIN`, `MAX`, `GROUP BY` |
+| 元数据 | `SHOW TABLES`, `SHOW USERS`, `SHOW COLUMNS FROM` |
+| 用户 | `CREATE USER`, `DROP USER`, `INSERT INTO users` |
 
-## User Management
+## 用户管理
 
 ```sql
--- Standard SQL syntax
+-- 标准 SQL 语法
 INSERT INTO users (username, role) VALUES ('analyst', 'reader');
 
--- Or use built-in commands
+-- 或者用内置命令
 CREATE USER analyst 'securePass789' reader;
 DROP USER analyst;
 SHOW USERS;
 ```
 
-Roles: `admin`, `writer`, `reader`. See [User Management](docs/en/USER_MANAGEMENT.md) for details.
+角色：`admin`（管理员）、`writer`（写入者）、`reader`（只读）。
+详见 [用户管理](docs/zh/USER_MANAGEMENT.md)。
 
-## Performance
+## 性能基准
 
-Benchmark numbers from [bench_1779259126.md](benchmark/reports/bench_1779259126.md) -- 100,000 rows, single-node Apple Silicon macOS, psycopg2 PG wire protocol:
+数据来自 [bench_1779259126.md](benchmark/reports/bench_1779259126.md) -- 100,000 行、单节点 Apple Silicon macOS、psycopg2 PG wire protocol：
 
-| Metric | HunTianDB | PostgreSQL 16 | QuestDB 7.x |
-|--------|----------:|-------------:|------------:|
+| 指标 | 混天DB | PostgreSQL 16 | QuestDB 7.x |
+|------|----------:|-------------:|------------:|
 | INSERT (batch=5000) | 68,741 r/s | 38,000 r/s | 280,000 r/s |
-| Point lookup p50 | 0.58ms | 1.2ms | 0.2ms |
-| COUNT(*) 100K rows | 0.07ms | 35ms | 3.5ms |
+| 点查询 p50 | 0.58ms | 1.2ms | 0.2ms |
+| COUNT(*) 10万行 | 0.07ms | 35ms | 3.5ms |
 | DDL CREATE TABLE | 4.0ms | 12ms | 8.0ms |
-| WAL per row | 109 bytes | -- | -- |
+| WAL 每条记录 | 109 字节 | -- | -- |
 
-**Architecture notes from the benchmark:**
-- Write path uses async lock-free WAL (crossbeam channel + background writer thread)
-- WAL format: zstd-compressed bincode (v3), 5x smaller than JSON text
-- Aggregations are vectorized via columnar cache (flat `f64` slices)
-- PG wire protocol allows zero-friction integration with existing PostgreSQL tooling
+**架构要点：**
+- 写入路径使用异步无锁 WAL（crossbeam channel + 后台写入线程），客户端即刻返回
+- WAL 格式：zstd 压缩 bincode (v3)，比 JSON 文本小 5 倍
+- 聚合函数采用列式缓存向量化，直接迭代 `f64` 连续切片
+- PG wire protocol 零摩擦兼容现有 PostgreSQL 工具链（Grafana、DBeaver、psycopg2）
 
-## Architecture
+## 架构
 
 ```
-Frontend (React + TDesign + Monaco Editor)
+前端 (React + TDesign + Monaco Editor)
     |
 REST API (axum)  +  PG Wire Protocol (tokio)
     \                    /
-     Database Engine (in-memory, WAL persistence)
-         |
-    data/recovery.log  (zstd-compressed bincode, async writer)
+      数据库引擎 (内存 + WAL 持久化)
+              |
+    data/recovery.log  (zstd 压缩 bincode, 异步写入)
 ```
 
-## Frontend
+## 前端
 
 ```bash
 cd frontend && bun install && bun run dev
 ```
 
-Opens on `http://localhost:3000` with:
-- **Dashboard** -- real-time security event monitoring with throughput charts and event stream
-- **SQL Query Builder** -- multi-tab Monaco editor with table browser, query history, and sample queries
-- **Event Viewer** -- paginated security event table with filters
-- **Settings** -- system info and configuration
+访问 `http://localhost:3000`，提供：
+- **仪表板** -- 实时安全事件监控，含吞吐量面积图、事件类型分布柱状图、事件流 Feed
+- **SQL 查询构建器** -- 多标签页 Monaco 编辑器，含数据表浏览器、查询历史、示例查询
+- **事件查看器** -- 分页安全事件表格，支持筛选
+- **设置** -- 系统信息与配置
 
-## License
+## 文档
+
+| 文档 | 语言 |
+|------|------|
+| [README (English)](README_EN.md) | EN |
+| [用户管理](docs/zh/USER_MANAGEMENT.md) | ZH |
+| [User Management](docs/en/USER_MANAGEMENT.md) | EN |
+| [架构说明](docs/zh/ARCHITECTURE.md) | ZH |
+| [安全说明](docs/zh/SECURITY.md) | ZH |
+
+## 许可证
 
 MIT
