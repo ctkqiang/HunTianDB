@@ -140,6 +140,7 @@ impl AppMetrics {
 // ── 系统指标采集（内存、FD） ──
 
 /// 采集进程 RSS 内存（字节）
+#[allow(unreachable_code)]
 pub fn collect_memory_usage() -> i64 {
     #[cfg(target_os = "linux")]
     {
@@ -177,6 +178,7 @@ pub fn collect_memory_usage() -> i64 {
 }
 
 /// 采集打开的文件描述符数量
+#[allow(unreachable_code)]
 pub fn collect_open_fds() -> i64 {
     #[cfg(target_os = "linux")]
     {
