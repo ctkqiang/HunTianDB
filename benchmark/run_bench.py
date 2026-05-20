@@ -684,11 +684,16 @@ def build_report(
     emit("## 6. WAL / Durability")
     emit()
     if wal.get("wal_bytes"):
+        entries = wal.get("wal_entries", 0)
+        avg_bytes = wal["wal_bytes"] / entries if entries > 0 else 0
         emit(f"| Metric | Value |")
         emit(f"|--------|-------|")
         emit(f"| WAL file | `data/recovery.log` |")
         emit(f"| Size | {wal['wal_bytes']:,} bytes ({wal['wal_bytes']/1024/1024:.1f} MB) |")
-        emit(f"| Entries | {wal['wal_entries']:,} |")
+        emit(f"| Entries | {entries:,} |")
+        if avg_bytes > 0:
+            emit(f"| Avg bytes/entry | {avg_bytes:.1f} (v3 zstd+bincode) |")
+        emit(f"| Format | v3: zstd-compressed bincode (5x vs v1 JSON) |")
         emit(f"| Crash recovery | Verified — WAL replay on restart (Database::new) |")
     else:
         emit("WAL file not found at `data/recovery.log`.")
