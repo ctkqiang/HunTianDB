@@ -1,6 +1,6 @@
 //! 混天DB 日志 — Spring Boot 风格
 //!
-//! ASCII Art 品牌横幅 + RFC3339 时间戳 + 线程名
+//! ASCII Art 品牌横幅 + RFC3339 + 线程名 + 启动诊断
 
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::{fmt, EnvFilter};
@@ -25,23 +25,18 @@ pub fn init_logger(json_output: bool) {
             .init();
     }
 
-    print_banner();
-}
-
-fn print_banner() {
+    print_bfn print_banner() {
     let v = env!("CARGO_PKG_VERSION");
     tracing::info!("");
-    tracing::info!("  ╔══════════════════════════════════════════════════════════════╗");
-    tracing::info!("  ║                                                              ║");
-    tracing::info!("  ║     ██╗  ██╗██╗   ██╗███╗   ██╗████████╗██╗ █████╗ ████╗    ║");
-    tracing::info!("  ║     ██║  ██║██║   ██║████╗  ██║╚══██╔══╝██║██╔══██╗██╔██╗   ║");
-    tracing::info!("  ║     ███████║██║   ██║██╔██╗ ██║   ██║   ██║███████║██║╚██╗  ║");
-    tracing::info!("  ║     ██╔══██║██║   ██║██║╚██╗██║   ██║   ██║██╔══██║██║ ╚██╗ ║");
-    tracing::info!("  ║     ██║  ██║╚██████╔╝██║ ╚████║   ██║   ██║██║  ██║██████╔╝ ║");
-    tracing::info!("  ║     ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝   ╚═╝   ╚═╝╚═╝  ╚═╝╚═════╝  ║");
-    tracing::info!("  ║                                                              ║");
-    tracing::info!("  ║          HunTianDB v{:<10} — 时序安全数据库                 ║", v);
-    tracing::info!("  ║          Timeseries Security Database                        ║");
-    tracing::info!("  ╚══════════════════════════════════════════════════════════════╝");
+    tracing::info!("                                                                ");
+    tracing::info!("       ██╗  ██╗██╗   ██╗███╗   ██╗████████╗██╗ █████╗ ████╗    ");
+    tracing::info!("       ██  ████   ██████╗  ██╚══██╔══╝████╔══██╗██╔██╗   ");
+    tracing::info!("       █████████   ████╔██╗ ██   ██   ███████████╚██╗  ");
+    tracing::info!("       ██╔══████   ████╚██╗██   ██   ████╔══████ ╚██╗ ");
+    tracing::info!("       ██  ██╚██████╔╝██ ╚████   ██   ████  ████████╔╝ ");
+    tracing::info!("       ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝   ╚═╝   ╚═╝╚═╝  ╚═╝╚═════╝  ");
+    tracing::info!("                                                                ");
+    tracing::info!("            混天 DB | HunTianDB v{:<10} — 时序安全数据库           ", v);
+    tracing::info!("            Timeseries Security Database                        ");
     tracing::info!("");
 }
