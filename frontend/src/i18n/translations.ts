@@ -38,6 +38,9 @@ const zh = {
   csv_header: "CSV至少需要标题行+数据行", json_empty: "JSON为空", unsupported_fmt: "不支持的文件格式",
   table_created: "表已创建", import_done: "导入完成", import_fail: "导入失败",
   export_done: "导出完成",
+  database_explorer: "数据库浏览器", no_tables: "暂无表", rows_n: "行",
+  history_empty: "暂无历史", clear_history_confirm: "确认清除所有历史?",
+  samples: "示例查询", tables: "数据表", editor: "查询编辑器",
 };
 
 const en: Record<string, string> = {
@@ -78,6 +81,9 @@ const en: Record<string, string> = {
   csv_header: "CSV needs header + data rows", json_empty: "JSON is empty", unsupported_fmt: "Unsupported format",
   table_created: "Table created", import_done: "Import complete", import_fail: "Import failed",
   export_done: "Export complete",
+  database_explorer: "Database Explorer", no_tables: "No tables", rows_n: "rows",
+  history_empty: "No history", clear_history_confirm: "Clear all history?",
+  samples: "Samples", tables: "Tables", editor: "Query Editor",
 };
 
 // Fill missing en keys from zh
