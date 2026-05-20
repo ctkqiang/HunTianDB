@@ -146,6 +146,11 @@ async fn query_handler(
     }
     // SELECT
     else if sql_upper.starts_with("SELECT ") || sql_upper.starts_with("SELECT*") {
+        // Try aggregate query first (COUNT, SUM, AVG, MIN, MAX, GROUP BY)
+        if let Some(agg_result) = try_aggregate_query(&db, &sql_upper) {
+            return agg_result.map(|(cols, rows)| Json(QueryResponse { columns: cols, rows, elapsed_ms: elapsed() }));
+        }
+
         let tbl_name = extract_table(&sql_upper).unwrap_or_else(|| "events".into());
         let tbl_name = tbl_name.trim_matches('"');
         let limit = extract_limit(&sql_upper).unwrap_or(100).min(1000);
@@ -264,6 +269,98 @@ fn parse_create_table(sql: &str) -> Result<(String, Vec<ColumnDef>), String> {
     }
     if columns.is_empty() { return Err("至少需要一列".into()); }
     Ok((name, columns))
+}
+
+/// Detect and execute aggregate queries: COUNT, SUM, AVG, MIN, MAX, GROUP BY.
+///
+/// Returns `Some(Ok(cols, rows))` if an aggregate pattern was recognized and executed,
+/// `Some(Err(...))` if recognized but failed (e.g. table not found),
+/// `None` if the SQL does not match any aggregate pattern.
+fn try_aggregate_query(
+    db: &crate::server::database::Database,
+    sql_upper: &str,
+) -> Option<Result<(Vec<String>, Vec<serde_json::Value>), (StatusCode, String)>> {
+    // Extract table name
+    let tbl_name = extract_table(sql_upper)?.trim_matches('"').to_string();
+    let tbl = db.get_table(&tbl_name)?;
+
+    // ── Simple aggregates: SELECT AGG(col) FROM table ──
+    let simple_aggs = ["COUNT", "SUM", "AVG", "MIN", "MAX"];
+    for agg_fn in &simple_aggs {
+        let prefix = format!("SELECT {agg_fn}(");
+        if let Some(after_prefix) = sql_upper.strip_prefix(&prefix) {
+            let col_name = if *agg_fn == "COUNT" && after_prefix.trim_start().starts_with("*)") {
+                "*".to_string()
+            } else if let Some(rp) = after_prefix.find(')') {
+                after_prefix[..rp].trim().to_string()
+            } else {
+                continue;
+            };
+
+            let cols = vec![format!("{agg_fn}({col_name})")];
+            let rows = match agg_fn.as_ref() {
+                "COUNT" if col_name == "*" => {
+                    let cnt = tbl.count_all();
+                    vec![serde_json::json!({format!("COUNT(*)"): cnt})]
+                }
+                "COUNT" => {
+                    let cnt = tbl.count_col(&col_name);
+                    vec![serde_json::json!({format!("COUNT({col_name})"): cnt})]
+                }
+                "SUM" => {
+                    let val = tbl.sum_col(&col_name);
+                    vec![serde_json::json!({format!("SUM({col_name})"): val})]
+                }
+                "AVG" => {
+                    let val = tbl.avg_col(&col_name);
+                    vec![serde_json::json!({format!("AVG({col_name})"): val})]
+                }
+                "MIN" => {
+                    let val = tbl.min_col(&col_name);
+                    vec![serde_json::json!({format!("MIN({col_name})"): val})]
+                }
+                "MAX" => {
+                    let val = tbl.max_col(&col_name);
+                    vec![serde_json::json!({format!("MAX({col_name})"): val})]
+                }
+                _ => return None,
+            };
+            return Some(Ok((cols, rows)));
+        }
+    }
+
+    // ── GROUP BY: SELECT col, AGG(col2) FROM table GROUP BY col ──
+    if let Some(gb_pos) = sql_upper.find(" GROUP BY ") {
+        let select_part = sql_upper[7..gb_pos].trim(); // after "SELECT "
+        let group_col = sql_upper[gb_pos + 10..].trim().to_string();
+
+        // Parse: "col, AGG(col2)" or "col, COUNT(*)"
+        for agg_fn in &simple_aggs {
+            let agg_prefix = format!("{agg_fn}(");
+            if let Some(agg_start) = select_part.find(&agg_prefix) {
+                let after_agg = &select_part[agg_start + agg_prefix.len()..];
+                let agg_col = if *agg_fn == "COUNT" && after_agg.trim_start().starts_with("*)") {
+                    "*".to_string()
+                } else if let Some(rp) = after_agg.find(')') {
+                    after_agg[..rp].trim().to_string()
+                } else {
+                    continue;
+                };
+
+                let results = tbl.group_by_agg(&group_col, &agg_col, agg_fn);
+                let cols = vec![group_col.clone(), format!("{agg_fn}({agg_col})")];
+                let rows: Vec<_> = results.into_iter().map(|(key, val)| {
+                    serde_json::json!({
+                        &group_col: key,
+                        &format!("{agg_fn}({agg_col})"): val,
+                    })
+                }).collect();
+                return Some(Ok((cols, rows)));
+            }
+        }
+    }
+
+    None
 }
 
 fn parse_insert(sql: &str) -> Result<(String, Vec<Vec<serde_json::Value>>), String> {

@@ -78,6 +78,167 @@ impl Table {
             self.rows[..count].to_vec()
         }
     }
+
+    // ── Aggregate functions ──
+
+    /// Get the value for a given column from a row HashMap (case-insensitive key lookup).
+    fn row_col_value<'a>(row: &'a HashMap<String, Value>, col: &str) -> Option<&'a Value> {
+        row.get(col).or_else(|| {
+            let lower = col.to_lowercase();
+            if lower == col { return None; }
+            row.get(&lower)
+        })
+    }
+
+    /// COUNT(*) — total rows in table.
+    pub fn count_all(&self) -> usize {
+        self.rows.len()
+    }
+
+    /// COUNT(col) — count non-null values for a column.
+    pub fn count_col(&self, col: &str) -> usize {
+        self.rows.iter()
+            .filter(|row| Self::row_col_value(row, col).map_or(false, |v| !v.is_null()))
+            .count()
+    }
+
+    /// SUM(col) → f64. Nulls are skipped. Returns None if no non-null values.
+    pub fn sum_col(&self, col: &str) -> Option<f64> {
+        let mut total = 0.0_f64;
+        let mut found = false;
+        for row in &self.rows {
+            if let Some(v) = Self::row_col_value(row, col) {
+                if let Some(n) = v.as_f64() {
+                    total += n;
+                    found = true;
+                } else if let Some(n) = v.as_i64() {
+                    total += n as f64;
+                    found = true;
+                }
+            }
+        }
+        if found { Some(total) } else { None }
+    }
+
+    /// AVG(col) → f64. Nulls are skipped. Returns None if no non-null numeric values.
+    pub fn avg_col(&self, col: &str) -> Option<f64> {
+        let mut total = 0.0_f64;
+        let mut count = 0_usize;
+        for row in &self.rows {
+            if let Some(v) = Self::row_col_value(row, col) {
+                if let Some(n) = v.as_f64() {
+                    total += n;
+                    count += 1;
+                } else if let Some(n) = v.as_i64() {
+                    total += n as f64;
+                    count += 1;
+                }
+            }
+        }
+        if count > 0 { Some(total / count as f64) } else { None }
+    }
+
+    /// MIN(col) → the minimum Value. Compares numbers numerically, strings lexically.
+    pub fn min_col(&self, col: &str) -> Option<Value> {
+        let mut best: Option<Value> = None;
+        for row in &self.rows {
+            if let Some(v) = Self::row_col_value(row, col) {
+                if v.is_null() { continue; }
+                match &best {
+                    None => best = Some(v.clone()),
+                    Some(b) => {
+                        if compare_values(v, b) == std::cmp::Ordering::Less {
+                            best = Some(v.clone());
+                        }
+                    }
+                }
+            }
+        }
+        best
+    }
+
+    /// MAX(col) → the maximum Value.
+    pub fn max_col(&self, col: &str) -> Option<Value> {
+        let mut best: Option<Value> = None;
+        for row in &self.rows {
+            if let Some(v) = Self::row_col_value(row, col) {
+                if v.is_null() { continue; }
+                match &best {
+                    None => best = Some(v.clone()),
+                    Some(b) => {
+                        if compare_values(v, b) == std::cmp::Ordering::Greater {
+                            best = Some(v.clone());
+                        }
+                    }
+                }
+            }
+        }
+        best
+    }
+
+    /// GROUP BY with one aggregate: returns Vec<(group_key, agg_value)>.
+    pub fn group_by_agg(
+        &self,
+        group_col: &str,
+        agg_col: &str,
+        agg_fn: &str,
+    ) -> Vec<(Value, f64)> {
+        let mut groups: HashMap<String, (f64, usize)> = HashMap::new(); // (sum, count)
+        let is_count = agg_fn == "COUNT";
+
+        for row in &self.rows {
+            let key = Self::row_col_value(row, group_col)
+                .cloned()
+                .unwrap_or(Value::Null);
+            let key_str = value_to_key(&key);
+
+            let entry = groups.entry(key_str).or_insert((0.0, 0));
+            if is_count {
+                entry.0 += 1.0;
+                entry.1 += 1;
+            } else if let Some(v) = Self::row_col_value(row, agg_col) {
+                if !v.is_null() {
+                    if let Some(n) = v.as_f64() {
+                        entry.0 += n;
+                        entry.1 += 1;
+                    } else if let Some(n) = v.as_i64() {
+                        entry.0 += n as f64;
+                        entry.1 += 1;
+                    }
+                }
+            }
+        }
+
+        groups.into_iter().map(|(k, (sum, cnt))| {
+            let key = serde_json::from_str(&k).unwrap_or(Value::String(k));
+            let val = if is_count { cnt as f64 } else { sum };
+            (key, val)
+        }).collect()
+    }
+}
+
+/// Compare two serde_json Values for ordering (MIN/MAX).
+fn compare_values(a: &Value, b: &Value) -> std::cmp::Ordering {
+    use std::cmp::Ordering;
+    match (a, b) {
+        (Value::Number(na), Value::Number(nb)) => {
+            na.as_f64().partial_cmp(&nb.as_f64()).unwrap_or(Ordering::Equal)
+        }
+        (Value::String(sa), Value::String(sb)) => sa.cmp(sb),
+        (Value::Bool(ba), Value::Bool(bb)) => ba.cmp(bb),
+        _ => Ordering::Equal,
+    }
+}
+
+/// Convert a Value to a string key for GROUP BY hashing.
+fn value_to_key(v: &Value) -> String {
+    match v {
+        Value::Null => "##NULL##".into(),
+        Value::Bool(b) => format!("##BOOL##{}", b),
+        Value::Number(n) => format!("##NUM##{}", n),
+        Value::String(s) => format!("##STR##{}", s),
+        _ => serde_json::to_string(v).unwrap_or_default(),
+    }
 }
 
 #[derive(Debug, Clone)]

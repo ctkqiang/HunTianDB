@@ -223,6 +223,30 @@ impl PostgresProtocol {
                     .await?;
             }
         } else if su.starts_with("SELECT") || su.starts_with("SELECT*") {
+            // Try aggregate query first (COUNT, SUM, AVG, MIN, MAX, GROUP BY)
+            let agg_result = pg_aggregate_query(&self.db, s);
+            if let Some(agg_ok) = agg_result {
+                match agg_ok {
+                    Ok((cols, rows)) => {
+                        if cols.is_empty() {
+                            self.send_empty_result().await?;
+                        } else {
+                            self.send_multi_row_desc(&cols).await?;
+                            for row in &rows {
+                                let row_map: std::collections::HashMap<String, serde_json::Value> = row
+                                    .as_object()
+                                    .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+                                    .unwrap_or_default();
+                                self.send_multi_data_row(&cols, &row_map).await?;
+                            }
+                        }
+                        self.send_command_complete("SELECT", rows.len() as u32).await?;
+                    }
+                    Err(msg) => {
+                        self.send_error(&msg).await?;
+                    }
+                }
+            } else {
             let tbl = self.extract_table_name(s);
             let limit = self.extract_limit(s).unwrap_or(100).min(1000);
             let desc = su.contains("DESC");
@@ -278,6 +302,7 @@ impl PostgresProtocol {
             } else {
                 self.send_error(&format!("表 '{}' 不存在", tbl)).await?;
             }
+            } // close else block from aggregate check
         } else if su.starts_with("CREATE USER ") || su.starts_with("CREATE ROLE ") {
             let rest = s
                 .trim_start_matches("CREATE USER ")
