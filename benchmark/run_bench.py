@@ -341,52 +341,61 @@ def bench_insert_batches() -> list[dict]:
 
 
 def bench_select_micro() -> list[dict]:
-    """Micro-benchmark SELECT query patterns (hot cache)."""
+    """Micro-benchmark SELECT query patterns (hot cache).
+
+    NOTE: HuntianDB currently only supports simple SELECT with LIMIT/WHERE.
+    Aggregation functions (COUNT, AVG, GROUP BY) are NOT yet implemented —
+    they passthrough as raw row reads. These are marked accordingly.
+    """
     print("  SELECT queries …")
     drop_table()
     create_table()
     seed_data(BASE_ROWS, batch_size=1000)
 
     queries = [
+        # Real queries — actually executed by HuntianDB
         (
             "point_lookup",
             f"SELECT * FROM {TABLE_NAME} WHERE id = %s",
             (BASE_ROWS // 2,),
+            True,  # implemented
         ),
         (
             "range_scan",
             f"SELECT * FROM {TABLE_NAME} WHERE id BETWEEN %s AND %s",
             (BASE_ROWS // 4, BASE_ROWS // 4 + 100),
+            True,
         ),
         (
             "limit_1000",
             f"SELECT * FROM {TABLE_NAME} LIMIT 1000",
             None,
+            True,
+        ),
+        # Passthrough queries — HuntianDB returns raw rows, not computed results
+        (
+            "count_star",
+            f"SELECT COUNT(*) FROM {TABLE_NAME}",
+            None,
+            False,  # passthrough — returns raw rows, not a count
         ),
         (
             "aggregation",
             f"SELECT etype, COUNT(*) AS cnt, AVG(status) FROM {TABLE_NAME} GROUP BY etype ORDER BY cnt DESC",
             None,
-        ),
-        (
-            "complex_filter",
-            f"SELECT zone, etype, COUNT(*) FROM {TABLE_NAME} WHERE status >= 200 GROUP BY zone, etype ORDER BY cnt DESC LIMIT 50",
-            None,
-        ),
-        (
-            "count_star",
-            f"SELECT COUNT(*) FROM {TABLE_NAME}",
-            None,
+            False,  # passthrough
         ),
     ]
 
     results = []
-    for name, sql, params in queries:
+    for name, sql, params, implemented in queries:
         print(f"    {name:<25} ", end="", flush=True)
         stats = microbench(sql, params, iters=50)
         stats["query"] = name
+        stats["implemented"] = implemented
+        tag = "" if implemented else " [passthrough]"
         results.append(stats)
-        print(f"→ p50={stats['p50']:.2f}ms  qps={stats['qps']:.0f}")
+        print(f"→ p50={stats['p50']:.2f}ms  qps={stats['qps']:.0f}{tag}")
     return results
 
 
@@ -417,7 +426,7 @@ def bench_upsert() -> dict:
 
 
 def bench_wal() -> dict:
-    """Collect WAL file statistics."""
+    """Collect WAL file statistics. Handles v1 JSON, v2 uncompressed binary, and v3 zstd-compressed binary."""
     print("  WAL stats …", end=" ", flush=True)
     wal_path = PROJECT_DIR / "data" / "recovery.log"
     result = {"wal_exists": wal_path.exists()}
@@ -425,12 +434,42 @@ def bench_wal() -> dict:
         stat = wal_path.stat()
         result["wal_bytes"] = stat.st_size
         try:
-            with open(wal_path) as f:
-                result["wal_entries"] = sum(1 for _ in f)
+            with open(wal_path, "rb") as f:
+                data = f.read()
+            result["wal_entries"] = _count_wal_records(data)
         except Exception:
             result["wal_entries"] = 0
     print(f"{result.get('wal_entries', 0):,} entries.")
     return result
+
+
+def _count_wal_records(data: bytes) -> int:
+    """Count WAL records across v1/v2/v3 formats."""
+    if not data:
+        return 0
+    count = 0
+    if data[0] == ord("{"):
+        # v1 JSON — count lines
+        count = sum(1 for line in data.split(b"\n") if line.strip())
+    elif data[0] == 0x03:
+        # v3 zstd — [0x03][4B uncomp_len][4B comp_len][zstd]
+        pos = 1
+        while pos + 8 <= len(data):
+            comp_len = int.from_bytes(data[pos + 4 : pos + 8], "little")
+            if comp_len == 0 or pos + 8 + comp_len > len(data):
+                break
+            count += 1
+            pos += 8 + comp_len
+    else:
+        # v2 uncompressed bincode — [4B len][bincode]
+        pos = 0
+        while pos + 4 <= len(data):
+            rec_len = int.from_bytes(data[pos : pos + 4], "little")
+            if rec_len == 0 or pos + 4 + rec_len > len(data):
+                break
+            count += 1
+            pos += 4 + rec_len
+    return count
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -486,7 +525,7 @@ def build_report(
     # ── Title ──
     emit("# HunTianDB — Performance Benchmark Report")
     emit()
-    emit(f"> **Date**: {ts} UTC  ")
+    emit(f"> **Date**: {ts}  ")
     emit(f"> **Rows per test**: {BASE_ROWS:,}  ")
     emit(f"> **Schema**: 11 columns — BIGINT×4, INT×2, SMALLINT×3, VARCHAR×1, TEXT×1  ")
     emit(f"> **Payload**: {len(PAYLOAD)} bytes per row (security audit log simulation)  ")
@@ -585,10 +624,13 @@ def build_report(
     emit()
     emit("### 4.1 HuntianDB Query Latency")
     emit()
-    s_headers = ["Query", "p50", "p95", "p99", "QPS"]
+    emit("*Note: queries marked ⚠ are passthrough — HuntianDB returns raw rows rather than computed aggregates (not yet implemented).*")
+    emit()
+    s_headers = ["Query", "Status", "p50", "p95", "p99", "QPS"]
     s_rows = [
         [
             r["query"],
+            "✅" if r.get("implemented") else "⚠ passthrough",
             f"{r['p50']:.2f}ms",
             f"{r['p95']:.2f}ms",
             f"{r['p99']:.2f}ms",
@@ -599,16 +641,16 @@ def build_report(
     emit(format_table(s_headers, s_rows))
     emit()
 
-    # Cross-vendor SELECT comparison
-    emit("### 4.2 Cross-Vendor Query Latency (p50)")
+    # Cross-vendor SELECT comparison (implemented queries only)
+    emit("### 4.2 Cross-Vendor Query Latency — Implemented Queries Only (p50)")
+    emit()
+    emit("*Only includes queries actually supported by HuntianDB. Aggregation functions (COUNT, AVG, GROUP BY) are not yet implemented.*")
     emit()
     cs_headers = ["Query", "MySQL 8.0", "PostgreSQL 16", "QuestDB 7.x", "HunTianDB"]
     huntian_by_query = {r["query"]: r["p50"] for r in selects}
     ref_select_map = {
         "point_lookup": "point_lookup_ms",
         "range_scan": "range_scan_ms",
-        "aggregation": "aggregation_ms",
-        "count_star": "count_star_ms",
     }
     cs_rows = []
     for qname, ref_key in ref_select_map.items():
@@ -692,7 +734,7 @@ def build_report(
 # ═══════════════════════════════════════════════════════════════
 
 def main() -> None:
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S") + " UTC"
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     print()
     print("╔" + "═" * 58 + "╗")
