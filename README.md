@@ -1,4 +1,6 @@
-# 混天DB
+# 混天 DB
+
+![](./figure/banner.png)
 
 时序安全数据库，兼容 PostgreSQL Wire Protocol v3.0。
 
@@ -9,6 +11,7 @@ cd backend && cargo run --release
 ```
 
 数据库启动后占用两个端口：
+
 - **TCP 5408** -- PostgreSQL Wire Protocol v3.0（可用 `psql`、`psycopg2`、JDBC、DBeaver 连接）
 - **TCP 3000** -- REST API + 前端仪表板
 
@@ -27,13 +30,13 @@ conn = psycopg2.connect(host="127.0.0.1", port=5408, user="admin", password="adm
 
 ## SQL 支持
 
-| 类别 | 命令 |
-|------|------|
-| DDL | `CREATE TABLE`, `DROP TABLE`, `DESCRIBE` |
-| DML | `INSERT INTO`, `SELECT` (WHERE, LIMIT, ORDER BY) |
-| 聚合 | `COUNT`, `SUM`, `AVG`, `MIN`, `MAX`, `GROUP BY` |
+| 类别   | 命令                                             |
+| ------ | ------------------------------------------------ |
+| DDL    | `CREATE TABLE`, `DROP TABLE`, `DESCRIBE`         |
+| DML    | `INSERT INTO`, `SELECT` (WHERE, LIMIT, ORDER BY) |
+| 聚合   | `COUNT`, `SUM`, `AVG`, `MIN`, `MAX`, `GROUP BY`  |
 | 元数据 | `SHOW TABLES`, `SHOW USERS`, `SHOW COLUMNS FROM` |
-| 用户 | `CREATE USER`, `DROP USER`, `INSERT INTO users` |
+| 用户   | `CREATE USER`, `DROP USER`, `INSERT INTO users`  |
 
 ## 用户管理
 
@@ -54,15 +57,16 @@ SHOW USERS;
 
 数据来自 [bench_1779259126.md](benchmark/reports/bench_1779259126.md) -- 100,000 行、单节点 Apple Silicon macOS、psycopg2 PG wire protocol：
 
-| 指标 | 混天DB | PostgreSQL 16 | QuestDB 7.x |
-|------|----------:|-------------:|------------:|
-| INSERT (batch=5000) | 68,741 r/s | 38,000 r/s | 280,000 r/s |
-| 点查询 p50 | 0.58ms | 1.2ms | 0.2ms |
-| COUNT(*) 10万行 | 0.07ms | 35ms | 3.5ms |
-| DDL CREATE TABLE | 4.0ms | 12ms | 8.0ms |
-| WAL 每条记录 | 109 字节 | -- | -- |
+| 指标                |    混天 DB | PostgreSQL 16 | QuestDB 7.x |
+| ------------------- | ---------: | ------------: | ----------: |
+| INSERT (batch=5000) | 68,741 r/s |    38,000 r/s | 280,000 r/s |
+| 点查询 p50          |     0.58ms |         1.2ms |       0.2ms |
+| COUNT(\*) 10 万行   |     0.07ms |          35ms |       3.5ms |
+| DDL CREATE TABLE    |      4.0ms |          12ms |       8.0ms |
+| WAL 每条记录        |   109 字节 |            -- |          -- |
 
 **架构要点：**
+
 - 写入路径使用异步无锁 WAL（crossbeam channel + 后台写入线程），客户端即刻返回
 - WAL 格式：zstd 压缩 bincode (v3)，比 JSON 文本小 5 倍
 - 聚合函数采用列式缓存向量化，直接迭代 `f64` 连续切片
@@ -87,6 +91,7 @@ cd frontend && bun install && bun run dev
 ```
 
 访问 `http://localhost:3000`，提供：
+
 - **仪表板** -- 实时安全事件监控，含吞吐量面积图、事件类型分布柱状图、事件流 Feed
 - **SQL 查询构建器** -- 多标签页 Monaco 编辑器，含数据表浏览器、查询历史、示例查询
 - **事件查看器** -- 分页安全事件表格，支持筛选
@@ -94,13 +99,13 @@ cd frontend && bun install && bun run dev
 
 ## 文档
 
-| 文档 | 语言 |
-|------|------|
-| [README (English)](README_EN.md) | EN |
-| [用户管理](docs/zh/USER_MANAGEMENT.md) | ZH |
-| [User Management](docs/en/USER_MANAGEMENT.md) | EN |
-| [架构说明](docs/zh/ARCHITECTURE.md) | ZH |
-| [安全说明](docs/zh/SECURITY.md) | ZH |
+| 文档                                          | 语言 |
+| --------------------------------------------- | ---- |
+| [README (English)](README_EN.md)              | EN   |
+| [用户管理](docs/zh/USER_MANAGEMENT.md)        | ZH   |
+| [User Management](docs/en/USER_MANAGEMENT.md) | EN   |
+| [架构说明](docs/zh/ARCHITECTURE.md)           | ZH   |
+| [安全说明](docs/zh/SECURITY.md)               | ZH   |
 
 ## 许可证
 
