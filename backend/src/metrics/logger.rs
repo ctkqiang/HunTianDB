@@ -25,7 +25,10 @@ pub fn init_logger(json_output: bool) {
             .init();
     }
 
-    fn print_banner() {
+    print_banner();
+}
+
+fn print_banner() {
     let v = env!("CARGO_PKG_VERSION");
     let b = |s: &str| tracing::info!("{}", s);
     b("");
