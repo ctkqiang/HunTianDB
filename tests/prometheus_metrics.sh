@@ -5,7 +5,7 @@ set -euo pipefail
 
 PG_PORT=15409
 REST_PORT=15810
-METRICS_PORT=19090
+METRICS_PORT=15490
 DATA_DIR=$(mktemp -d /tmp/huntian_metrics_test.XXXXXX)
 BINARY="${BINARY:-./target/release/huntiandb}"
 

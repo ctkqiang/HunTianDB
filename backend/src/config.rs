@@ -118,7 +118,7 @@ impl Config {
             checkpoint_interval_secs: env_u64("CHECKPOINT_INTERVAL_SECS", 300),
             page_checksum: env_str("PAGE_CHECKSUM", "true") != "false",
             slow_query_threshold_ms: env_u64("SLOW_QUERY_THRESHOLD_MS", 100),
-            metrics_port: env_u16("METRICS_PORT", 9090),
+            metrics_port: env_u16("METRICS_PORT", 5490),
             prometheus_enabled: env_str("PROMETHEUS_ENABLED", "true") != "false",
             prometheus_path: env_str("PROMETHEUS_PATH", "/metrics"),
         })

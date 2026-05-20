@@ -101,7 +101,7 @@ cd frontend && bun install && bun run dev
 
 混天DB 内置 Prometheus 指标端点，提供生产级监控能力。
 
-**端点：** 默认 `:9090/metrics`（通过 `METRICS_PORT` / `PROMETHEUS_PATH` 配置）
+**端点：** 默认 `:5490/metrics`（通过 `METRICS_PORT` / `PROMETHEUS_PATH` 配置）
 
 **指标：**
 
@@ -128,7 +128,7 @@ cd frontend && bun install && bun run dev
 METRICS_PORT=9090 PROMETHEUS_ENABLED=true cargo run
 
 # 验证
-curl http://localhost:9090/metrics
+curl http://localhost:5490/metrics
 curl http://localhost:9090/health
 ```
 
@@ -137,7 +137,7 @@ curl http://localhost:9090/health
 | 环境变量 | 默认值 | 说明 |
 |----------|--------|------|
 | `PROMETHEUS_ENABLED` | true | 启用/禁用指标端点 |
-| `METRICS_PORT` | 9090 | 指标 HTTP 端口（0=禁用） |
+| `METRICS_PORT` | 5490 | 指标 HTTP 端口（0=禁用） |
 | `PROMETHEUS_PATH` | /metrics | 指标导出路径 |
 
 ## 文档

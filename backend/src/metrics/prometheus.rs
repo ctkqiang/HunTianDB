@@ -1,6 +1,6 @@
 //! Prometheus 指标导出 — 生产级可观测性
 //!
-//! 指标端点默认在 :9090/metrics，可通过 PROMETHEUS_PORT / PROMETHEUS_PATH 配置。
+//! 指标端点默认在 :5490/metrics，可通过 METRICS_PORT / PROMETHEUS_PATH 配置。
 //! 同时提供 /health 和 /ready 端点用于健康检查与就绪探针。
 //!
 //! 指标包括:
