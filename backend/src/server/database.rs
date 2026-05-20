@@ -23,10 +23,26 @@ enum WalOp {
 }
 
 impl Table {
+    /// 构造一张具备给定列定义的新数据表。
+    ///
+    /// @param name 表名称（不区分大小写）。
+    /// @param columns 列定义集合，顺序决定后续 INSERT 的数值排列。
+    /// @return 返回初始化为空行集的 Table 实例。
     pub fn new(name: &str, columns: Vec<ColumnDef>) -> Self {
         Self { name: name.to_string(), columns, rows: Vec::new() }
     }
 
+    /// 向表中追加一行数据。
+    ///
+    /// 值的顺序必须与建表时的列定义顺序完全一致，否则返回列数不匹配错误。
+    /// 该方法仅修改内存结构，WAL 持久化由上层 [`Database::log_insert`] 负责。
+    ///
+    /// @param values 单行数据，每个元素对应一列。
+    /// @return 插入成功返回 `Ok(())`，列数不匹配返回 `Err`。
+    ///
+    /// # Errors
+    ///
+    /// 当 `values.len()` 与 `self.columns.len()` 不相等时，返回描述性错误字符串。
     pub fn insert(&mut self, values: Vec<Value>) -> Result<(), String> {
         if values.len() != self.columns.len() {
             return Err(format!("列数不匹配: 需要 {}, 提供了 {}", self.columns.len(), values.len()));
@@ -39,6 +55,14 @@ impl Table {
         Ok(())
     }
 
+    /// 从表中检索限定数量的行。
+    ///
+    /// 当前实现为全表线性扫描，未建立索引。对于审计日志类时序数据，
+    /// 默认按插入顺序返回（`desc=true` 时从尾部截取最新记录）。
+    ///
+    /// @param limit 最大返回行数。
+    /// @param desc 为 `true` 时返回最近插入的行（倒序）。
+    /// @return 按指定顺序排列的行集合。
     pub fn select(&self, limit: usize, desc: bool) -> Vec<HashMap<String, Value>> {
         let total = self.rows.len();
         if total == 0 { return vec![]; }
@@ -67,6 +91,15 @@ pub struct Database {
 }
 
 impl Database {
+    /// 初始化混天DB 数据库引擎。
+    ///
+    /// 预置 `events` 安全审计表和 4 个默认用户账号。
+    /// 若 `wal_enabled` 为 `true`，从 `data_dir/recovery.log` 回放 WAL 恢复数据。
+    /// 启动耗时与 WAL 文件大小成正比——生产环境建议定期清理或归档历史日志。
+    ///
+    /// @param data_dir 数据持久化目录路径。
+    /// @param wal_enabled 是否启用 WAL 持久化与启动回放。
+    /// @return 已初始化并完成 WAL 回放（若启用）的 Database 实例。
     pub fn new(data_dir: std::path::PathBuf, wal_enabled: bool) -> Self {
         let mut db = Self { tables: HashMap::new(), users: HashMap::new(), data_dir, wal_enabled };
         // 预置默认用户
@@ -143,7 +176,18 @@ impl Database {
         }
     }
 
-    /// INSERT + WAL 日志 (同时写入内存和持久化)
+    /// 执行 INSERT 并同步写入 WAL 恢复日志。
+    ///
+    /// 先将数据写入内存表，再序列化操作指令追加至 `recovery.log`。
+    /// 若 `wal_enabled` 为 `false`，跳过 WAL 写入仅操作内存。
+    ///
+    /// @param table 目标表名称。
+    /// @param values 单行数据值列表。
+    /// @return 成功返回 `Ok(())`，表不存在或列数不匹配返回 `Err`。
+    ///
+    /// # Errors
+    ///
+    /// 目标表不存在或列数与值列表长度不一致时返回错误。
     pub fn log_insert(&mut self, table: &str, values: Vec<Value>) -> Result<(), String> {
         let t = self.get_table_mut(table).ok_or_else(|| format!("表 '{}' 不存在", table))?;
         t.insert(values.clone())?;
@@ -151,6 +195,18 @@ impl Database {
         Ok(())
     }
 
+    /// 创建新表并写入 WAL 日志。
+    ///
+    /// 表名自动转换为小写存储。若 WAL 已启用，创建操作同步记录至恢复日志，
+    /// 确保重启后可完整重建表结构。
+    ///
+    /// @param name 表名称（不区分大小写）。
+    /// @param columns 列定义列表。
+    /// @return 成功返回 `Ok(())`，表已存在返回 `Err`。
+    ///
+    /// # Errors
+    ///
+    /// 当同名表已存在时返回描述性错误。
     pub fn create_table(&mut self, name: &str, columns: Vec<ColumnDef>) -> Result<(), String> {
         let name_lower = name.to_lowercase();
         if self.tables.contains_key(&name_lower) { return Err(format!("表 '{}' 已存在", name)); }
@@ -195,6 +251,14 @@ impl Database {
         self.users.remove(&name); Ok(())
     }
 
+    /// 验证用户名与明文密码是否匹配。
+    ///
+    /// 使用 SCRAM-SHA-256 协议比对存储的哈希值。
+    /// 比对过程采用常量时间比较以抵御时序侧信道攻击。
+    ///
+    /// @param username 待验证的用户名。
+    /// @param password 客户端提交的明文密码。
+    /// @return 密码正确且用户存在时返回 `true`。
     pub fn verify_password(&self, username: &str, password: &str) -> bool {
         let name = username.to_lowercase();
         self.users.get(&name).map(|u| crate::auth::scram::ScramServer::verify_password(password, &u.password_hash)).unwrap_or(false)

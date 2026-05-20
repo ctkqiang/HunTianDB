@@ -7,6 +7,27 @@ import { useUIStore } from "@/store/uiStore";
 
 const { Header, Aside, Content } = Layout;
 
+/**
+ * 混天DB 企业级主布局框架。
+ *
+ * 采用 TDesign Layout 组件构建经典的「Header-Aside-Content」三栏结构。
+ * Header 承载品牌标识、主题切换、语言切换与用户下拉菜单；
+ * Aside 提供可折叠的侧边导航栏（仪表板/事件查看/查询构建器/设置）；
+ * Content 区域渲染子路由页面。
+ *
+ * 主题状态由 `useUIStore` 全局管理，支持深色/浅色双模切换。
+ * 语言状态由 `useT` 国际化 Hook 驱动，支持中文/英文实时切换。
+ *
+ * @param children 子组件（页面内容），由路由分发器注入。
+ * @returns 完整的 TDesign 企业级布局 JSX 元素。
+ *
+ * @example
+ * ```tsx
+ * <MainLayout>
+ *   <Dashboard />
+ * </MainLayout>
+ * ```
+ */
 export function MainLayout({ children }: { children?: ReactNode }) {
   const { user, signOut } = useAuth();
   const { t, lang, setLang } = useT();

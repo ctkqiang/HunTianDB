@@ -12,6 +12,24 @@ const TC:Record<number,"primary"|"success"|"warning"|"danger"|"default">={1:"pri
 const nf=(n:number)=>n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e3?(n/1e3).toFixed(1)+"K":String(n);
 const tfl=(ms:number,locale:string)=>new Date(ms).toLocaleTimeString(locale==="zh"?"zh-CN":"en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
 
+/**
+ * 混天DB 主仪表板 — 系统运行状态实时监控组件。
+ *
+ * 该组件通过 `useEvents` Hook 每4秒轮询后端 REST API，
+ * 聚合最新安全审计事件数据，渲染吞吐量面积图、事件类型分布柱状图
+ * 以及实时事件流Feed。点击事件条目可呼出 Drawer 查看完整字段详情。
+ *
+ * 所有数据和图表均为真实 API 响应驱动，不使用任何模拟数据。
+ *
+ * @returns 包含 KPI 卡牌、双图表、事件流与详情 Drawer 的完整仪表板布局。
+ *
+ * @example
+ * ```tsx
+ * <MainLayout>
+ *   <Dashboard />
+ * </MainLayout>
+ * ```
+ */
 export function Dashboard() {
   const {data,refetch}=useEvents();const {t,lang}=useT();
   const [online,setOnline]=useState(false);const [detail,setDetail]=useState<R|null>(null);
