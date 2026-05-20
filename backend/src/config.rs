@@ -35,10 +35,16 @@ pub struct Config {
 
 impl Config {
     /// 从环境变量加载配置
+    /// 从环境变量加载运行时配置。
+    ///
+    /// 所有参数均有合理的默认值，仅 `DB_ENCRYPTION_KEY` 在生产环境强制要求设置。
+    /// 开发模式下使用内置默认密钥，无需额外配置。
+    ///
+    /// @return 填充完成且经过合法性校验的 Config 结构体。
     ///
     /// # Errors
     ///
-    /// 如果 `DB_ENCRYPTION_KEY` 未设置或无效 base64，返回错误。
+    /// 若 `DB_ENCRYPTION_KEY` 的 base64 解码失败，返回 `Config` 错误变体。
     pub fn from_env() -> Result<Self, crate::error::HunTianError> {
         let enc_key_b64 = std::env::var("DB_ENCRYPTION_KEY")
             .unwrap_or_else(|_| "bHUMintCAaQfOkp1wl4C35FDxgizuxFTUjXvYbgg8Co=".into());

@@ -15,6 +15,15 @@ const SAMPLES = [
   "SELECT user_id, COUNT(*) as cnt FROM events GROUP BY user_id ORDER BY cnt DESC LIMIT 10;",
 ];
 
+/**
+ * SQL 查询构建器 — 混天DB 交互式数据查询界面。
+ *
+ * 提供多行 SQL 编辑器、表浏览器、查询历史、结果导出(CSV/JSON/TXT)
+ * 和文件导入功能。按 Ctrl+Enter 快捷执行查询。
+ * 所有查询通过 PG Wire Protocol 代理至后端数据库引擎。
+ *
+ * @returns 包含编辑器、操作栏、历史标签和结果表格的完整查询构建器布局。
+ */
 export function QueryBuilder() {
   const { t } = useT();
   const [sql, setSql] = useState(() => String(localStorage.getItem("hunt_sql") || DEFAULT));

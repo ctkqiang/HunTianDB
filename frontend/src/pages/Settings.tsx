@@ -2,6 +2,15 @@ import { Card, Row, Col, Tag, Divider } from "tdesign-react";
 import { MailIcon, UserIcon, CodeIcon } from "tdesign-icons-react";
 import { useT } from "@/i18n/useT";
 
+/**
+ * 系统设置页面 — 展示 HunTianDB 实例的系统信息、安全配置和关于信息。
+ *
+ * 采用三栏卡片布局：系统信息（端口/存储/加密）、
+ * 安全配置（TLS/认证/授权）、关于（品牌/作者/仓库）。
+ * 所有文本通过国际化 Hook 支持中英双语切换。
+ *
+ * @returns 包含系统信息、安全配置和关于面板的设置页面布局。
+ */
 export function Settings() {
   const { t } = useT();
 

@@ -50,6 +50,17 @@ async fn login_handler(
     Ok(Json(LoginResponse { token, role: role.into() }))
 }
 
+/// 执行任意 SQL 并返回 JSON 结果集。
+///
+/// 支持 DDL/DML 及元数据查询。写操作同步写入 WAL 确保崩溃恢复。
+///
+/// @param state 共享应用状态（数据库引擎引用）。
+/// @param req 包含 `sql` 字段的 JSON 请求体。
+/// @return 列名、行数据与耗时构成的 QueryResponse JSON。
+///
+/// # Errors
+///
+/// 表不存在或 SQL 无效时返回 400 BAD_REQUEST。
 async fn query_handler(
     State(state): State<Arc<ApiState>>,
     Json(req): Json<QueryRequest>,
