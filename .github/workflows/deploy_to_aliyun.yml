@@ -30,7 +30,11 @@ jobs:
       - name: 设置镜像标签
         id: meta
         run: |
-          TAG=${GITHUB_REF_TYPE == 'tag' && GITHUB_REF_NAME || 'latest'}
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="latest"
+          fi
           echo "IMAGE_TAG=${TAG}" >> $GITHUB_ENV
           echo "FULL_IMAGE=${{ env.ACR_REGISTRY }}/${{ env.ACR_NAMESPACE }}/${{ env.ACR_REPO }}:${TAG}" >> $GITHUB_ENV
 
