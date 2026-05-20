@@ -4,6 +4,32 @@ Timeseries security database with PostgreSQL Wire Protocol v3.0 compatibility.
 
 ## Quick Start
 
+### Docker (Recommended)
+
+```bash
+# International (Docker Hub)
+docker pull ctkqiang/huntiandb:952d3f4e19adb464cd5da2d02edeed1d9a89781e
+
+# China (Alibaba Cloud Container Registry)
+docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.0.beta
+
+# Run
+docker run -d \
+  -p 5408:5408 -p 3000:3000 -p 5490:5490 \
+  -v huntian_data:/app/data \
+  ctkqiang/huntiandb:952d3f4e19adb464cd5da2d02edeed1d9a89781e
+```
+
+The image exposes three ports:
+
+| Port | Protocol | Description |
+|------|----------|-------------|
+| `5408` | PostgreSQL Wire Protocol v3.0 | `psql`, DBeaver, JDBC, psycopg2 |
+| `3000` | HTTP | REST API + Web Portal (Dashboard, SQL Query Builder) |
+| `5490` | HTTP | Prometheus `/metrics` + `/health` + `/ready` |
+
+### Build from Source
+
 ```bash
 cd backend && cargo run --release
 ```
