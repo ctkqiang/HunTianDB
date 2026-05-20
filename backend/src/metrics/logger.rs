@@ -6,8 +6,7 @@ use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::{fmt, EnvFilter};
 
 pub fn init_logger(json_output: bool) {
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info"));
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
     if json_output {
         fmt().with_env_filter(env_filter).json().init();
@@ -41,8 +40,12 @@ fn print_banner() {
     b("  ║     ██║  ██║╚██████╔╝██║ ╚████║   ██║   ██║██║  ██║      ║");
     b("  ║     ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝   ╚═╝   ╚═╝╚═╝  ╚═╝      ║");
     b("  ║                                                          ║");
-    b(&format!("  ║      混天 HunTianDB v{:<10} — 时序安全数据库       ║", v));
-    b("  ║      Timeseries Security Database · Rust + Tokio          ║");
+    b(&format!(
+        "  ║          混天 HunTianDB  v{:<12}                 ║",
+        v
+    ));
+    b("  ║          时序安全数据库 · Timeseries Security DB          ║");
+    b("  ║                                                          ║");
     b("  ╚══════════════════════════════════════════════════════════╝");
     b("");
 }
