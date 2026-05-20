@@ -503,7 +503,7 @@ impl Database {
             // v3 — zstd-compressed bincode
             let mut pos = 1usize; // skip version byte
             while pos + 8 <= data.len() {
-                let uncomp_len = u32::from_le_bytes([data[pos], data[pos+1], data[pos+2], data[pos+3]]) as usize;
+                let _uncomp_len = u32::from_le_bytes([data[pos], data[pos+1], data[pos+2], data[pos+3]]) as usize;
                 let comp_len = u32::from_le_bytes([data[pos+4], data[pos+5], data[pos+6], data[pos+7]]) as usize;
                 pos += 8;
                 if comp_len == 0 || pos + comp_len > data.len() { break; }

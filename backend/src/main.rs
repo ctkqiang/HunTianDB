@@ -48,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         socket.set_reuseaddr(true).unwrap();
         socket.bind(addr.parse().unwrap()).unwrap();
         let listener = socket.listen(1024).unwrap();
-        tracing::info!("PostgreSQL WIRE 线协议监听: {} (明文, SO_REUSEADDR)", addr);
+        tracing::info!("WIRE 线协议监听: {} (明文, SO_REUSEADDR)", addr);
         loop {
             let (stream, peer) = listener.accept().await.unwrap();
             let db = pg_db.clone();
