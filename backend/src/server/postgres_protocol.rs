@@ -112,7 +112,7 @@ impl PostgresProtocol {
                         let s = self.prepared_sql.clone();
                         self.skip_message().await?;
                         if let Some(ref sql) = s {
-                            self.handle_query(sql).await?;
+                            self.handle_query_extended(sql).await?;
                         }
                     }
                     b'S' => {
@@ -131,7 +131,16 @@ impl PostgresProtocol {
 
     // ---- handlers ----
 
+    /// 扩展协议 Execute 阶段: Describe 已发送 RowDescription，此处跳过只发数据行。
+    async fn handle_query_extended(&mut self, sql: &str) -> HunTianResult<()> {
+        self.handle_query_inner(sql, true).await
+    }
+
     async fn handle_query(&mut self, sql: &str) -> HunTianResult<()> {
+        self.handle_query_inner(sql, false).await
+    }
+
+    async fn handle_query_inner(&mut self, sql: &str, skip_desc: bool) -> HunTianResult<()> {
         let s = sql.trim();
         let su = s.to_uppercase();
         tracing::info!("混天::查询 {}", s);
@@ -146,6 +155,15 @@ impl PostgresProtocol {
             || su.starts_with("DEALLOCATE ")
         {
             self.send_command_complete("OK", 0).await?;
+        } else if let Some(result) = try_handle_system_query(&su, s) {
+            // 系统目录查询——返回 PostgreSQL 兼容的模拟响应
+            if skip_desc {
+                // 扩展协议: 只发数据行
+                self.send_system_rows(&result).await?;
+                self.send_command_complete("SELECT", result.rows.len() as u32).await?;
+            } else {
+                self.respond_system_query(result).await?;
+            }
         } else if su.starts_with("SHOW TABLES") || su.contains("SHOW TABLES") {
             let names = { self.db.read().table_names() };
             self.send_row_desc("table_name").await?;
@@ -497,9 +515,37 @@ impl PostgresProtocol {
 
     async fn respond_describe(&mut self, sql: &str) -> HunTianResult<()> {
         let su = sql.to_uppercase();
+
+        // DDL/DML/SET — 无结果行，发送 NoData
+        if su.starts_with("SET ") || su.starts_with("RESET ") || su.starts_with("BEGIN")
+            || su.starts_with("COMMIT") || su.starts_with("ROLLBACK")
+            || su.starts_with("INSERT ") || su.starts_with("CREATE ")
+            || su.starts_with("DROP ") || su.starts_with("DELETE ")
+            || su.starts_with("DEALLOCATE ") || su.starts_with("DISCARD ")
+        {
+            self.send_no_data().await?;
+            return Ok(());
+        }
+
+        // 系统目录查询 — 返回正确的列元数据
+        if let Some(sys_result) = try_handle_system_query(&su, sql) {
+            if sys_result.columns.is_empty() {
+                self.send_no_data().await?;
+            } else {
+                let col_names: Vec<String> = sys_result.columns.iter().map(|(n, _)| n.clone()).collect();
+                self.send_multi_row_desc(&col_names).await?;
+            }
+            return Ok(());
+        }
+
         let tbl = self.extract_table_name(sql);
-        let exists = { self.db.read().get_table(&tbl).is_some() };
-        if exists || su.contains("VERSION") || su.contains("CURRENT_") || su.contains("PG_") {
+        let cols: Option<Vec<String>> = {
+            let db = self.db.read();
+            db.get_table(&tbl).map(|t| t.columns.iter().map(|c| c.name.clone()).collect())
+        };
+        if let Some(cols) = cols {
+            self.send_multi_row_desc(&cols).await?;
+        } else if su.contains("VERSION") || su.contains("CURRENT_") || su.contains("PG_") {
             self.send_row_desc("result").await?;
         } else {
             self.send_empty_result().await?;
@@ -749,6 +795,49 @@ impl PostgresProtocol {
         Ok(())
     }
 
+    /// 发送系统目录查询的完整响应（含 RowDescription + DataRow + CommandComplete）。
+    async fn respond_system_query(&mut self, result: SystemQueryResult) -> HunTianResult<()> {
+        if result.columns.is_empty() {
+            self.send_empty_result().await?;
+            self.send_command_complete("SELECT", 0).await?;
+        } else {
+            let col_names: Vec<String> = result.columns.iter().map(|(n, _)| n.clone()).collect();
+            self.send_multi_row_desc(&col_names).await?;
+            for row in &result.rows {
+                let mut map = HashMap::new();
+                for (i, val) in row.iter().enumerate() {
+                    if let Some((col_name, _)) = result.columns.get(i) {
+                        map.insert(col_name.clone(), Value::String(val.clone()));
+                    }
+                }
+                self.send_multi_data_row(&col_names, &map).await?;
+            }
+            self.send_command_complete("SELECT", result.rows.len() as u32).await?;
+        }
+        Ok(())
+    }
+
+    /// 扩展协议专用：只发送数据行（RowDescription 已在 Describe 阶段发送）。
+    async fn send_system_rows(&mut self, result: &SystemQueryResult) -> HunTianResult<()> {
+        let col_names: Vec<String> = result.columns.iter().map(|(n, _)| n.clone()).collect();
+        for row in &result.rows {
+            let mut map = HashMap::new();
+            for (i, val) in row.iter().enumerate() {
+                if let Some((col_name, _)) = result.columns.get(i) {
+                    map.insert(col_name.clone(), Value::String(val.clone()));
+                }
+            }
+            self.send_multi_data_row(&col_names, &map).await?;
+        }
+        Ok(())
+    }
+
+    /// 发送 NoData 消息（PG 协议 'n' — 无结果列）。
+    async fn send_no_data(&mut self) -> HunTianResult<()> {
+        self.stream.write_all(b"n\0\0\0\x04").await?;
+        Ok(())
+    }
+
     async fn send_empty_result(&mut self) -> HunTianResult<()> {
         self.stream.write_all(&[b'T', 0, 0, 0, 6, 0, 0]).await?;
         Ok(())
@@ -887,6 +976,144 @@ fn pg_aggregate_query(
                 return Some(Ok((cols, rows)));
             }
         }
+    }
+
+    None
+}
+
+// ── 系统目录查询拦截器 ──
+// 为 DBeaver/pgAdmin 等 GUI 工具提供 PostgreSQL 兼容的模拟响应。
+
+struct SystemQueryResult {
+    columns: Vec<(String, String)>,
+    rows: Vec<Vec<String>>,
+}
+
+/// 匹配常见系统目录查询，返回模拟结果。
+fn try_handle_system_query(su: &str, _raw: &str) -> Option<SystemQueryResult> {
+    // SHOW TABLES / USERS / COLUMNS / DESCRIBE — 交给常规处理器
+    if su.starts_with("SHOW TABLES") || su.starts_with("SHOW USERS") || su.starts_with("SHOW COLUMNS")
+        || su.starts_with("DESCRIBE ") || su.starts_with("DESC ") {
+        return None;
+    }
+
+    // SELECT version()
+    if su.starts_with("SELECT VERSION()") || su.contains("VERSION()") {
+        return Some(SystemQueryResult {
+            columns: vec![("version".into(), "text".into())],
+            rows: vec![vec!["PostgreSQL 16.0 (HunTianDB)".into()]],
+        });
+    }
+
+    // SELECT current_schema() / current_database() 及组合
+    if su.starts_with("SELECT CURRENT_SCHEMA()") || su.contains("CURRENT_SCHEMA()") {
+        let mut cols = vec![("current_schema".into(), "name".into())];
+        let mut row = vec!["public".into()];
+        if su.contains("SESSION_USER") { cols.push(("session_user".into(), "name".into())); row.push("admin".into()); }
+        if su.contains("CURRENT_USER") { cols.push(("current_user".into(), "name".into())); row.push("admin".into()); }
+        return Some(SystemQueryResult { columns: cols, rows: vec![row] });
+    }
+    if su.starts_with("SELECT CURRENT_DATABASE()") {
+        return Some(SystemQueryResult {
+            columns: vec![("current_database".into(), "name".into())],
+            rows: vec![vec!["huntiandb".into()]],
+        });
+    }
+
+    // SHOW xxx / current_setting
+    if su.starts_with("SELECT CURRENT_SETTING(") || su.starts_with("SHOW ") {
+        let value = if su.contains("CLIENT_ENCODING") { "UTF8" }
+            else if su.contains("STANDARD_CONFORMING_STRINGS") { "on" }
+            else if su.contains("SERVER_VERSION") { "16.0" }
+            else if su.contains("TIMEZONE") { "UTC" }
+            else if su.contains("DATESTYLE") { "ISO, MDY" }
+            else if su.contains("MAX_IDENTIFIER_LENGTH") { "63" }
+            else if su.contains("TRANSACTION_ISOLATION") { "read committed" }
+            else if su.contains("APPLICATION_NAME") { "DBeaver" }
+            else { "on" };
+        return Some(SystemQueryResult {
+            columns: vec![(value.to_string(), "text".into())],
+            rows: vec![vec![value.into()]],
+        });
+    }
+
+    // pg_catalog.pg_settings
+    if su.contains("PG_SETTINGS") {
+        return Some(SystemQueryResult {
+            columns: vec![("name".into(),"text".into()),("setting".into(),"text".into()),
+                ("unit".into(),"text".into()),("category".into(),"text".into()),
+                ("short_desc".into(),"text".into()),("extra_desc".into(),"text".into()),
+                ("context".into(),"text".into()),("vartype".into(),"text".into()),
+                ("source".into(),"text".into()),("min_val".into(),"text".into()),
+                ("max_val".into(),"text".into()),("enumvals".into(),"text".into()),
+                ("boot_val".into(),"text".into()),("reset_val".into(),"text".into()),
+                ("sourcefile".into(),"text".into()),("sourceline".into(),"text".into()),
+                ("pending_restart".into(),"text".into())],
+            rows: vec![
+                vec!["client_encoding".into(),"UTF8".into(),String::new(),"Client Connection Defaults".into(),"Sets the client's character set encoding.".into(),String::new(),"user".into(),"string".into(),"session".into(),String::new(),String::new(),String::new(),"UTF8".into(),"UTF8".into(),String::new(),String::new(),"f".into()],
+                vec!["server_version".into(),"16.0".into(),String::new(),"Reporting and Logging".into(),"Shows the server version.".into(),String::new(),"internal".into(),"string".into(),"default".into(),String::new(),String::new(),String::new(),"16.0".into(),"16.0".into(),String::new(),String::new(),"f".into()],
+            ],
+        });
+    }
+
+    // pg_catalog.pg_database
+    if su.contains("PG_DATABASE") {
+        return Some(SystemQueryResult {
+            columns: vec![("datname".into(),"name".into()),("datdba".into(),"oid".into()),
+                ("encoding".into(),"int4".into()),("datcollate".into(),"name".into()),
+                ("datctype".into(),"name".into()),("datistemplate".into(),"bool".into()),
+                ("datallowconn".into(),"bool".into()),("datconnlimit".into(),"int4".into()),
+                ("datlastsysoid".into(),"oid".into()),("datfrozenxid".into(),"xid".into()),
+                ("datminmxid".into(),"xid".into()),("dattablespace".into(),"oid".into()),
+                ("datacl".into(),"text[]".into())],
+            rows: vec![vec!["huntiandb".into(),"10".into(),"6".into(),"en_US.UTF-8".into(),"en_US.UTF-8".into(),"f".into(),"t".into(),"-1".into(),"0".into(),"0".into(),"0".into(),"1663".into(),String::new()]],
+        });
+    }
+
+    // pg_catalog.pg_roles
+    if su.contains("PG_ROLES") || su.contains("PG_USER") || su.contains("PG_AUTHID") {
+        return Some(SystemQueryResult {
+            columns: vec![("rolname".into(),"name".into()),("rolsuper".into(),"bool".into()),
+                ("rolinherit".into(),"bool".into()),("rolcreaterole".into(),"bool".into()),
+                ("rolcreatedb".into(),"bool".into()),("rolcanlogin".into(),"bool".into()),
+                ("rolreplication".into(),"bool".into()),("rolconnlimit".into(),"int4".into()),
+                ("rolpassword".into(),"text".into()),("rolvaliduntil".into(),"timestamptz".into())],
+            rows: vec![vec!["admin".into(),"t".into(),"t".into(),"t".into(),"t".into(),"t".into(),"t".into(),"-1".into(),"********".into(),String::new()]],
+        });
+    }
+
+    // pg_catalog.pg_type (含 JOIN)
+    if su.contains("PG_TYPE") || su.contains("PG_GET_KEYWORDS") {
+        if su.contains("PG_GET_KEYWORDS") {
+            return Some(SystemQueryResult {
+                columns: vec![("string_agg".into(), "text".into())],
+                rows: vec![vec!["SELECT,FROM,WHERE,INSERT,UPDATE,DELETE,CREATE,DROP,TABLE,INTO,VALUES,SET,AND,OR,NOT,NULL,TRUE,FALSE,ORDER,BY,GROUP,LIMIT,OFFSET,JOIN,LEFT,RIGHT,INNER,ON,AS,DISTINCT,COUNT,SUM,AVG,MIN,MAX,LIKE,IN,BETWEEN,IS,DEFAULT,PRIMARY,KEY".into()]],
+            });
+        }
+        return Some(SystemQueryResult {
+            columns: vec![("oid".into(),"oid".into()),("typname".into(),"name".into()),
+                ("typlen".into(),"int2".into()),("typbyval".into(),"bool".into()),
+                ("typtype".into(),"char".into()),("typcategory".into(),"char".into())],
+            rows: vec![
+                vec!["23".into(),"int4".into(),"4".into(),"t".into(),"b".into(),"N".into()],
+                vec!["20".into(),"int8".into(),"8".into(),"f".into(),"b".into(),"N".into()],
+                vec!["25".into(),"text".into(),"-1".into(),"f".into(),"b".into(),"S".into()],
+                vec!["1043".into(),"varchar".into(),"-1".into(),"f".into(),"b".into(),"S".into()],
+                vec!["16".into(),"bool".into(),"1".into(),"t".into(),"b".into(),"C".into()],
+                vec!["21".into(),"int2".into(),"2".into(),"t".into(),"b".into(),"N".into()],
+                vec!["700".into(),"float4".into(),"4".into(),"t".into(),"b".into(),"N".into()],
+                vec!["701".into(),"float8".into(),"8".into(),"t".into(),"b".into(),"N".into()],
+            ],
+        });
+    }
+
+    // 其他 pg_catalog — 空结果
+    if su.contains("PG_CATALOG.") || su.contains("PG_ATTRIBUTE") || su.contains("PG_INDEX")
+        || su.contains("PG_CONSTRAINT") || su.contains("PG_STATISTIC") || su.contains("PG_PROC")
+        || su.contains("PG_DESCRIPTION") || su.contains("PG_TABLESPACE") || su.contains("PG_COLLATION")
+        || su.contains("PG_AM") || su.contains("PG_OPCLASS") || su.contains("PG_EXTENSION")
+    {
+        return Some(SystemQueryResult { columns: vec![], rows: vec![] });
     }
 
     None

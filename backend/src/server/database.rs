@@ -22,7 +22,7 @@ pub struct Table {
     pub name: String,
     pub columns: Vec<ColumnDef>,
     pub rows: Vec<HashMap<String, Value>>,
-    // Columnar cache for vectorized aggregation — built lazily, cleared on insert
+    // 列式缓存，用于向量化聚合——惰性构建，插入时清空
     col_cache: HashMap<String, Vec<f64>>,
 }
 
@@ -33,20 +33,19 @@ enum WalOp {
     DropTable { name: String },
 }
 
-// ── Async WAL writer ──
+// ── 异步 WAL 写入器 ──
 
-/// Commands sent to the background WAL writer thread.
+/// 发送给后台 WAL 写入线程的命令。
 enum WalCommand {
-    /// Write a pre-serialized, pre-compressed v3 record to disk.
+    /// 将预序列化、预压缩的 v3 记录写入磁盘。
     Write(Vec<u8>),
-    /// Flush and fsync the underlying file.
+    /// 刷新并 fsync 底层文件。
     Flush,
-    /// Stop the writer thread gracefully.
+    /// 优雅停止写入线程。
     Shutdown,
 }
 
-/// Spawn a background thread that receives compressed WAL records
-/// and writes them to disk with a BufWriter.
+/// 启动后台线程，接收压缩后的 WAL 记录并通过 BufWriter 写入磁盘。
 fn spawn_wal_writer(
     rx: crossbeam::channel::Receiver<WalCommand>,
     path: std::path::PathBuf,
@@ -133,8 +132,8 @@ impl Table {
 
     // ── Vectorized aggregation (columnar cache) ──
 
-    /// Build a flat `Vec<f64>` for a column if not already cached.
-    /// Extracts numeric values from HashMap rows into contiguous memory.
+    /// 为指定列构建连续的 `Vec<f64>` 向量（若尚未缓存）。
+    /// 从 HashMap 行中提取数值到连续内存，后续聚合遍历命中 CPU 缓存。
     fn ensure_col_f64(&mut self, col_name: &str) -> &[f64] {
         if !self.col_cache.contains_key(col_name) {
             let col_lower = col_name.to_lowercase();
