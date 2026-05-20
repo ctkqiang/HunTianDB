@@ -4,6 +4,27 @@
 
 use std::path::PathBuf;
 
+/// WAL 同步提交模式
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SyncCommit {
+    /// 不强制 fsync — 由操作系统决定何时刷盘
+    Off,
+    /// 每次提交调用 File::sync_all() 确保数据落盘
+    On,
+    /// Strict: sync_all() 在 WAL 文件及其父目录上执行，确保目录元数据也落盘
+    Strict,
+}
+
+impl SyncCommit {
+    pub fn from_env() -> Self {
+        match std::env::var("SYNC_COMMIT").unwrap_or_else(|_| "on".into()).to_lowercase().as_str() {
+            "off" | "false" | "0" => SyncCommit::Off,
+            "strict" => SyncCommit::Strict,
+            _ => SyncCommit::On,
+        }
+    }
+}
+
 /// 混天DB 运行时配置
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -31,6 +52,18 @@ pub struct Config {
     pub max_events_per_partition: u64,
     /// WAL 持久化开关（关闭后启动极速，但数据不持久）
     pub wal_enabled: bool,
+    /// 同步提交模式: Off / On / Strict
+    pub sync_commit: SyncCommit,
+    /// WAL 校验和开关
+    pub wal_checksum: bool,
+    /// 检查点间隔（秒），默认 300
+    pub checkpoint_interval_secs: u64,
+    /// 页面校验和开关
+    pub page_checksum: bool,
+    /// 慢查询日志阈值（毫秒），默认 100
+    pub slow_query_threshold_ms: u64,
+    /// Prometheus 指标端口，0 表示禁用
+    pub metrics_port: u16,
 }
 
 impl Config {
@@ -76,6 +109,12 @@ impl Config {
             wal_batch_size: env_usize("WAL_BATCH_SIZE", 100_000),
             max_events_per_partition: env_u64("MAX_EVENTS_PER_PARTITION", 1_000_000),
             wal_enabled: env_str("WAL_ENABLED", "true") != "false",
+            sync_commit: SyncCommit::from_env(),
+            wal_checksum: env_str("WAL_CHECKSUM", "true") != "false",
+            checkpoint_interval_secs: env_u64("CHECKPOINT_INTERVAL_SECS", 300),
+            page_checksum: env_str("PAGE_CHECKSUM", "true") != "false",
+            slow_query_threshold_ms: env_u64("SLOW_QUERY_THRESHOLD_MS", 100),
+            metrics_port: env_u16("METRICS_PORT", 9090),
         })
     }
 }

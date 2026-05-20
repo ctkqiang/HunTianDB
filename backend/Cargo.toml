@@ -53,6 +53,7 @@ bloomfilter = "1"
 snap = "1"
 lz4 = "1"
 zstd = "0.13"
+crc32fast = "1"
 
 # SQL解析
 sqlparser = "0.51"

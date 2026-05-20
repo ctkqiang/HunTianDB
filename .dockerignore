@@ -6,3 +6,10 @@ data/
 .env
 .DS_Store
 benchmark/reports/
+figure/
+**/*.png
+**/*.jpg
+backend/static/
+.git/
+frontend/Readme.md
+frontend/Readme_EN.md

@@ -14,6 +14,7 @@
 
 pub mod config;
 pub mod error;
+pub mod metrics;
 pub mod models;
 pub mod server;
 pub mod auth;
@@ -21,4 +22,4 @@ pub mod query;
 pub mod storage;
 pub mod snapshot;
 pub mod callback;
-pub mod metrics;
+pub mod wal;

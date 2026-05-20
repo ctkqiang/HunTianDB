@@ -6,8 +6,11 @@
 FROM rust:1.85-alpine AS backend-builder
 RUN apk add --no-cache musl-dev pkgconfig openssl-dev
 WORKDIR /build
-COPY backend/Cargo.toml backend/Cargo.lock ./
-COPY backend/src/ ./src/
+# 工作空间根配置
+COPY Cargo.toml Cargo.lock ./
+# 后端 crate
+COPY backend/Cargo.toml backend/
+COPY backend/src/ backend/src/
 RUN cargo build --release --bin huntiandb && \
     strip target/release/huntiandb
 
