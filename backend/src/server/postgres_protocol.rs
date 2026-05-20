@@ -3,9 +3,12 @@
 //! 支持标准 Start-up → Authentication → Query 流程。
 //! 已接入内存数据库引擎：INSERT/SELECT/CREATE TABLE 真实执行。
 
+use std::collections::HashMap;
+
 use crate::error::{HunTianError, HunTianResult};
 use crate::server::database::SharedDb;
 use bytes::{Buf, BytesMut};
+use serde_json::Value;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
@@ -284,8 +287,22 @@ impl PostgresProtocol {
                 self.send_row_desc("datname").await?;
                 self.send_data_row("huntiandb").await?;
                 self.send_command_complete("SELECT", 1).await?;
+            } else if su.contains("PG_CLASS") && su.contains("RELKIND") {
+                // DBeaver / pgAdmin table list query — return actual tables with metadata
+                let names = { self.db.read().table_names() };
+                let cols = vec!["Schema".to_string(), "Name".to_string(), "Type".to_string(), "Owner".to_string()];
+                self.send_multi_row_desc(&cols).await?;
+                for n in &names {
+                    let mut row = HashMap::new();
+                    row.insert("Schema".to_string(), Value::String("public".into()));
+                    row.insert("Name".to_string(), Value::String(n.clone()));
+                    row.insert("Type".to_string(), Value::String("table".into()));
+                    row.insert("Owner".to_string(), Value::String("admin".into()));
+                    self.send_multi_data_row(&cols, &row).await?;
+                }
+                self.send_command_complete("SELECT", names.len() as u32).await?;
             } else if su.contains("PG_CLASS") {
-                // psql \dt — return actual tables
+                // psql \dt — return actual tables (simple format)
                 let names = { self.db.read().table_names() };
                 self.send_row_desc("relname").await?;
                 for n in &names {
