@@ -68,6 +68,8 @@ impl PostgresProtocol {
                 return Ok(());
             }
         }
+        // AuthenticationOk — PG协议要求认证成功后必须发送
+        self.stream.write_all(&[b'R', 0, 0, 0, 8, 0, 0, 0, 0]).await?;
         self.send_parameter_status("server_version", "9.6.0-HunTianDB")
             .await?;
         self.send_parameter_status("server_encoding", "UTF8")
