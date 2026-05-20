@@ -72,6 +72,18 @@ async fn query_handler(
 
     let elapsed = || t0.elapsed().as_secs_f64() * 1000.0;
 
+    // SHOW USERS
+    if sql_upper == "SHOW USERS" {
+        let rows: Vec<_> = db.list_users().iter().map(|u| {
+            serde_json::json!({"username": u.username, "role": u.role})
+        }).collect();
+        return Ok(Json(QueryResponse {
+            columns: vec!["username".into(), "role".into()],
+            rows,
+            elapsed_ms: elapsed(),
+        }));
+    }
+
     // SHOW TABLES
     if sql_upper == "SHOW TABLES" {
         let tables = db.table_names();
