@@ -1,0 +1,127 @@
+name: 构建并推送混天DB镜像
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+
+jobs:
+
+  deploy-aliyun:
+    name: 推送到阿里云 ACR
+    runs-on: ubuntu-latest
+    env:
+      APP_NAME: huntiandb
+      ACR_REGISTRY: crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com
+      ACR_NAMESPACE: nezhawanluoanquan
+      ACR_REPO: huntiandb
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 登录到阿里云 ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ACR_REGISTRY }}
+          username: ${{ secrets.ALIYUN_ACR_USERNAME }}
+          password: ${{ secrets.ALIYUN_ACR_PASSWORD }}
+
+      - name: 设置镜像标签
+        id: meta
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="latest"
+          fi
+          echo "IMAGE_TAG=${TAG}" >> $GITHUB_ENV
+          echo "FULL_IMAGE=${{ env.ACR_REGISTRY }}/${{ env.ACR_NAMESPACE }}/${{ env.ACR_REPO }}:${TAG}" >> $GITHUB_ENV
+
+      - name: 构建并推送镜像
+        run: |
+          docker build -t "$FULL_IMAGE" .
+          docker push "$FULL_IMAGE"
+
+
+  deploy-aws:
+    name: 推送到 AWS ECR
+    runs-on: ubuntu-latest
+    env:
+      APP_NAME: huntiandb
+      ECR_REPOSITORY: huntiandb
+      PUBLIC_ECR_REGISTRY: public.ecr.aws
+      PUBLIC_ECR_ALIAS: ${{ secrets.PUBLIC_ECR_ALIAS }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 AWS 凭证
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: 登录 Amazon ECR Public
+        id: login-ecr-public
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+
+      - name: 确保公共 ECR 仓库存在
+        run: |
+          aws ecr-public describe-repositories --repository-names $ECR_REPOSITORY --region us-east-1 2>/dev/null \
+            || aws ecr-public create-repository --repository-name $ECR_REPOSITORY --region us-east-1
+
+      - name: 设置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 构建并推送多架构镜像到公共 ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          TAGS="-t $ECR_REGISTRY/$PUBLIC_ECR_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG"
+          TAGS="$TAGS -t $ECR_REGISTRY/$PUBLIC_ECR_ALIAS/$ECR_REPOSITORY:development"
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            TAG_NAME=${GITHUB_REF#refs/tags/}
+            TAGS="$TAGS -t $ECR_REGISTRY/$PUBLIC_ECR_ALIAS/$ECR_REPOSITORY:$TAG_NAME"
+          fi
+
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            $TAGS \
+            --push \
+            .
+
+  deploy-dockerhub:
+    name: 推送到 Docker Hub
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 登录到 Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: 设置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 提取 Git 标签名
+        id: vars
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: 构建并推送 Docker 镜像到 Docker Hub
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/huntianandb:latest
+            ${{ secrets.DOCKER_USERNAME }}/huntianandb:${{ steps.vars.outputs.tag }}
+            ${{ secrets.DOCKER_USERNAME }}/huntianandb:${{ github.sha }}
