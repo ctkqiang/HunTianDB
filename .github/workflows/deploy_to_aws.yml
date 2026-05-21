@@ -9,7 +9,8 @@ on:
 env:
   APP_NAME: huntiandb
   ECR_REPOSITORY: huntiandb
-  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  PUBLIC_ECR_REGISTRY: public.ecr.aws
+  PUBLIC_ECR_ALIAS: ${{ secrets.PUBLIC_ECR_ALIAS }}
 
 jobs:
   build-and-push:
@@ -17,9 +18,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-
       - name: 配置 AWS 凭证
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -27,34 +25,27 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: 登录 Amazon ECR
-        id: login-ecr
+      - name: 登录 Amazon ECR Public
+        id: login-ecr-public
         uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
 
-      - name: 确保 ECR 仓库存在
+      - name: 确保公共 ECR 仓库存在（必须在 us-east-1 操作）
         run: |
-          aws ecr describe-repositories --repository-names $ECR_REPOSITORY 2>/dev/null \
-            || aws ecr create-repository --repository-name $ECR_REPOSITORY \
-                --image-tag-mutability MUTABLE \
-                --image-scanning-configuration scanOnPush=true
+          aws ecr-public describe-repositories --repository-names $ECR_REPOSITORY --region us-east-1 2>/dev/null \
+            || aws ecr-public create-repository --repository-name $ECR_REPOSITORY --region us-east-1
 
-      - name: 设置 Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: 设置 QEMU (用于多架构构建)
-        uses: docker/setup-qemu-action@v3
-
-      - name: 构建并推送多架构镜像到 ECR
+      - name: 构建并推送多架构镜像到公共 ECR
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          # 构建标签列表
-          TAGS="-t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-          TAGS="$TAGS -t $ECR_REGISTRY/$ECR_REPOSITORY:development"
+          TAGS="-t $ECR_REGISTRY/$PUBLIC_ECR_ALIAS/$ECR_REPOSITORY:$IMAGE_TAG"
+          TAGS="$TAGS -t $ECR_REGISTRY/$PUBLIC_ECR_ALIAS/$ECR_REPOSITORY:development"
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
             TAG_NAME=${GITHUB_REF#refs/tags/}
-            TAGS="$TAGS -t $ECR_REGISTRY/$ECR_REPOSITORY:$TAG_NAME"
+            TAGS="$TAGS -t $ECR_REGISTRY/$PUBLIC_ECR_ALIAS/$ECR_REPOSITORY:$TAG_NAME"
           fi
 
           docker buildx build \
