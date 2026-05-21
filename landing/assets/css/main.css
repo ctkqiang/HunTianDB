@@ -1,49 +1,42 @@
-/* ── HunTianDB Landing — Pure CSS Design System ── */
+/* ── HunTianDB Landing — Design System ── */
 
 :root {
-  --db-900: #0f0f1a;
-  --db-850: #121220;
-  --db-800: #16162b;
-  --db-700: #1e1e3a;
-  --db-600: #2a2a4a;
-  --db-500: #3a3a5a;
-  --accent: #e63946;
-  --accent-light: #ff6b6b;
-  --gold: #f4a261;
-  --teal: #2ec4b6;
-  --blue: #457b9d;
-  --text: #e0e0e0;
-  --text-dim: #8a8a9a;
-  --white-5: rgba(255,255,255,0.05);
-  --white-8: rgba(255,255,255,0.08);
-  --white-10: rgba(255,255,255,0.1);
-  --radius: 16px;
-  --font: "Inter", system-ui, sans-serif;
-  --mono: "JetBrains Mono", monospace;
+  --db-bg: #0b0b16;
+  --db-surface: #12121f;
+  --db-card: #18182a;
+  --db-border: rgba(255,255,255,0.06);
+  --db-text: #e4e4ec;
+  --db-dim: #7c7c92;
+  --db-accent: #e63946;
+  --db-accent-light: #ff5c67;
+  --db-gold: #f4a261;
+  --db-teal: #2ec4b6;
+  --db-blue: #457b9d;
+  --font: "Inter", system-ui, -apple-system, sans-serif;
+  --mono: "JetBrains Mono", "Cascadia Code", monospace;
 }
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html { scroll-behavior: smooth; }
 
 body {
   font-family: var(--font);
-  background: var(--db-900);
-  color: var(--text);
+  background: var(--db-bg);
+  color: var(--db-text);
   line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
 
-::selection { background: rgba(230,57,70,0.4); color: #fff; }
+::selection { background: rgba(230,57,70,0.35); color: #fff; }
+
+a { color: inherit; }
 
 /* ── Animations ── */
 @keyframes float {
-  0%,100% { transform: translateY(0); }
+  0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-20px); }
-}
-@keyframes glow {
-  0% { box-shadow: 0 0 20px rgba(230,57,70,0.15); }
-  100% { box-shadow: 0 0 50px rgba(230,57,70,0.5); }
 }
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(30px); }
@@ -53,38 +46,45 @@ body {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-@keyframes gridMove {
-  0% { background-position: 0 0; }
-  100% { background-position: 50px 50px; }
-}
-@keyframes pulse-dot {
-  0%,100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
 @keyframes scaleIn {
   from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
 }
+@keyframes gridMove {
+  0% { background-position: 0 0; }
+  100% { background-position: 50px 50px; }
+}
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
 
-/* ── Utility Classes ── */
+/* ── Global Utilities ── */
 .gradient-text {
-  background: linear-gradient(135deg, var(--accent-light), var(--accent), var(--gold));
+  background: linear-gradient(135deg, var(--db-accent-light), var(--db-accent), var(--db-gold));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  display: inline;
 }
 .gradient-text-teal {
-  background: linear-gradient(135deg, var(--teal), var(--blue), var(--accent-light));
+  background: linear-gradient(135deg, var(--db-teal), var(--db-blue), var(--db-accent-light));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  display: inline;
 }
 .glass {
-  background: rgba(30,30,58,0.6);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--white-5);
-  border-radius: var(--radius);
+  background: rgba(18,18,31,0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--db-border);
+  border-radius: 16px;
 }
-.glow-border {
-  box-shadow: 0 0 0 1px rgba(230,57,70,0.3), 0 0 30px rgba(230,57,70,0.1);
+.grid-bg {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  opacity: 0.03;
+  background-image: radial-gradient(circle, rgba(230,57,70,0.8) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: gridMove 20s linear infinite;
 }
