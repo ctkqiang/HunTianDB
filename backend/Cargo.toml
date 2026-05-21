@@ -31,7 +31,7 @@ getrandom = "0.2"
 pbkdf2 = { version = "0.12", features = ["simple"] }
 
 # JWT认证
-jsonwebtoken = "9"
+jsonwebtoken = "10"
 
 # 列式存储
 arrow = { version = "53", features = ["prettyprint"] }
