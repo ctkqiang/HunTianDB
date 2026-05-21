@@ -40,10 +40,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { ChevronRight, Menu, Globe } from "lucide-vue-next";
-import { useI18n } from "../composables/useI18n";
 import docsEn from "../locales/docs-en";
 import docsZh from "../locales/docs-zh";
 
+// useI18n 在 Nuxt composables 中自动导入，跨页面状态共享
 const { locale, setLocale } = useI18n();
 const t = computed(() => locale.value === "zh" ? docsZh : docsEn);
 
