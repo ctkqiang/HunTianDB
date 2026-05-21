@@ -53,30 +53,7 @@ const activeSection = ref("getting-started");
 const openSections = ref(new Set(["getting-started"]));
 
 const allItems = computed(() => t.value.sections.flatMap(s => s.items));
-const rawContent = computed(() => allItems.value.find(i => i.id === currentHash.value)?.content || "");
-
-// 预处理：在内容 HTML 中查找所有 <pre><code> 块，应用语法高亮
-const currentContent = computed(() => {
-  let html = rawContent.value;
-  // Find all <pre><code>...</code></pre> blocks and highlight them
-  html = html.replace(/<pre><code>(.*?)<\/code><\/pre>/gs, (_: string, code: string) => {
-    // code is the raw text content of the code block
-    let highlighted = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    // Apply the same highlighting as landing page
-    highlighted = highlighted.replace(/(["'`])(?:(?!\1)[^\\]|\\.)*?\1/g, '<span class="tok-str">$&</span>');
-    highlighted = highlighted.replace(/\b(\d+\.?\d*)\b/g, '<span class="tok-num">$1</span>');
-    highlighted = highlighted.replace(/(--.*$|#.*$|\/\/.*$)/gm, '<span class="tok-comment">$1</span>');
-    highlighted = highlighted.replace(/(\s|^)(--?[a-zA-Z][a-zA-Z0-9_-]*)/g, '$1<span class="tok-flag">$2</span>');
-    SQL_KEYWORDS.forEach(kw => { const re = new RegExp(`\\b(${kw})\\b`,"gi"); highlighted = highlighted.replace(re, '<span class="tok-kw">$1</span>'); });
-    SQL_FUNCTIONS.forEach(fn => { const re = new RegExp(`\\b(${fn})\\b(?=\\s*\\()`,"gi"); highlighted = highlighted.replace(re, '<span class="tok-fn">$1</span>'); });
-    highlighted = highlighted.replace(/\b(docker|pull|push|run|build|exec|ps|logs|stop|start|restart|rm|rmi|tag|login|logout|compose|git|clone|cargo|psql)\b/g, '<span class="tok-cmd">$1</span>');
-    highlighted = highlighted.replace(/\b(import|from|def|return|if|else|for|while|try|except|with|in|not|and|or|True|False|None|print|pass|const|let|var|function|async|await|export|default|require|include|use|pub|fn|let|mut|struct|impl|new|null|var|err|ok|end|do|begin|rescue|ensure|yield|self|nil|module|when|case|of|receive|send|catch|as|class)\b/g, '<span class="tok-kw">$1</span>');
-    highlighted = highlighted.replace(/\b(int|char|void|double|float|long|short|unsigned|signed|string|bool|error|String|boolean|array|Number|Int|Bool|String|IO|Maybe|Either|Option|Result|Vec|HashMap|BTreeMap|Connection|Statement|ResultSet|PGconn|PGresult|Client|Pool)\b/g, '<span class="tok-type">$1</span>');
-    highlighted = highlighted.replace(/\.(\w+)\b/g, '.<span class="tok-fn">$1</span>');
-    return `<pre><code>${highlighted}</code></pre>`;
-  });
-  return html;
-});
+const currentContent = computed(() => allItems.value.find(i => i.id === currentHash.value)?.content || "");
 
 function toggleSection(id: string) {
   if (openSections.value.has(id)) openSections.value.delete(id);
