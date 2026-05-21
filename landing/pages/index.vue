@@ -87,16 +87,16 @@
       <div class="section-head"><h2>{{ t.quickstart.heading }}</h2><p>{{ t.quickstart.sub }}</p></div>
 
       <div class="steps">
-        <div class="step"><div class="step-num">1</div><div class="step-content"><h3>{{ t.quickstart.step1.title }}</h3><p>{{ t.quickstart.step1.desc }}</p><div class="code-block hl-docker"><div class="code-label">{{ t.quickstart.dockerHub }}</div><button class="copy-btn" @click="copyBlock($event)"><Copy :size="12" /> Copy</button><pre><code><span class="tok-kw">docker</span> <span class="tok-cmd">pull</span> <span class="tok-str">ctkqiang/huntiandb:v0.1.3.beta</span></code></pre></div><div class="code-block hl-docker"><div class="code-label">{{ t.quickstart.alibaba }}</div><button class="copy-btn" @click="copyBlock($event)"><Copy :size="12" /> Copy</button><pre><code><span class="tok-kw">docker</span> <span class="tok-cmd">pull</span> <span class="tok-str">crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.3.beta</span></code></pre></div></div></div>
+        <div class="step"><div class="step-num">1</div><div class="step-content"><h3>{{ t.quickstart.step1.title }}</h3><p>{{ t.quickstart.step1.desc }}</p><div class="code-block"><div class="code-label">{{ t.quickstart.dockerHub }}</div><button class="copy-btn" @click="copyBlock($event)"><Copy :size="12" /> Copy</button><pre><code>docker pull ctkqiang/huntiandb:v0.1.3.beta</code></pre></div><div class="code-block"><div class="code-label">{{ t.quickstart.alibaba }}</div><button class="copy-btn" @click="copyBlock($event)"><Copy :size="12" /> Copy</button><pre><code>docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.3.beta</code></pre></div></div></div>
 
-        <div class="step"><div class="step-num">2</div><div class="step-content"><h3>{{ t.quickstart.step2.title }}</h3><p>{{ t.quickstart.step2.desc }}</p><div class="code-block hl-docker"><button class="copy-btn" @click="copyBlock($event)"><Copy :size="12" /> Copy</button><pre><code><span class="tok-kw">docker</span> <span class="tok-cmd">run</span> <span class="tok-flag">-d</span> <span class="tok-flag">-p</span> <span class="tok-num">5408:5408</span> <span class="tok-flag">-p</span> <span class="tok-num">3000:3000</span> <span class="tok-flag">-p</span> <span class="tok-num">5490:5490</span> \
-  <span class="tok-flag">-v</span> <span class="tok-str">huntian_data:/app/data</span> \
-  <span class="tok-str">ctkqiang/huntiandb:v0.1.3.beta</span></code></pre></div></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-content"><h3>{{ t.quickstart.step2.title }}</h3><p>{{ t.quickstart.step2.desc }}</p><div class="code-block"><button class="copy-btn" @click="copyBlock($event)"><Copy :size="12" /> Copy</button><pre><code>docker run -d -p 5408:5408 -p 3000:3000 -p 5490:5490 \
+  -v huntian_data:/app/data \
+  ctkqiang/huntiandb:v0.1.3.beta</code></pre></div></div></div>
 
-        <div class="step"><div class="step-num">3</div><div class="step-content"><h3>{{ t.quickstart.step3.title }}</h3><p>{{ t.quickstart.step3.desc }}</p><div class="client-grid"><div v-for="(c, j) in t.quickstart.clients" :key="c.label" class="code-block hl-code"><div class="code-label">{{ c.label }}</div><button class="copy-btn" @click="copyBlock($event)"><Copy :size="11" /></button><pre><code>{{ c.code }}</code></pre></div></div></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-content"><h3>{{ t.quickstart.step3.title }}</h3><p>{{ t.quickstart.step3.desc }}</p><div class="client-grid"><div v-for="(c, j) in t.quickstart.clients" :key="c.label" class="code-block"><div class="code-label">{{ c.label }}</div><button class="copy-btn" @click="copyBlock($event)"><Copy :size="11" /></button><pre><code>{{ c.code }}</code></pre></div></div></div></div>
 
-        <div class="step step-alt"><div class="step-num">*</div><div class="step-content"><h3>{{ t.quickstart.cargo }}</h3><div class="code-block hl-bash"><button class="copy-btn" @click="copyBlock($event)"><Copy :size="12" /> Copy</button><pre><code><span class="tok-cmd">git</span> <span class="tok-flag">clone</span> <span class="tok-str">https://github.com/ctkqiang/HunTianDB</span>
-<span class="tok-cmd">cd</span> HuntianDB/backend && <span class="tok-cmd">cargo</span> <span class="tok-flag">run</span> <span class="tok-flag">--release</span></code></pre></div></div></div>
+        <div class="step step-alt"><div class="step-num">*</div><div class="step-content"><h3>{{ t.quickstart.cargo }}</h3><div class="code-block"><button class="copy-btn" @click="copyBlock($event)"><Copy :size="12" /> Copy</button><pre><code>git clone https://github.com/ctkqiang/HunTianDB
+cd HuntianDB/backend && cargo run --release</code></pre></div></div></div>
       </div>
     </section>
 
@@ -198,10 +198,14 @@ const SQL_KW = ["SELECT","FROM","WHERE","INSERT","INTO","VALUES","CREATE","TABLE
 const SQL_FN = ["COUNT","SUM","AVG","MIN","MAX","COALESCE","NULLIF"];
 
 function highlightAllCodeBlocks() {
-  document.querySelectorAll(".code-block pre code, .hero-code").forEach((el) => {
+  document.querySelectorAll(".code-block pre code").forEach((el) => {
     const code = el as HTMLElement;
-    if (code.querySelector(".tok-kw")) return; // already done
-    let html = code.innerHTML;
+    if (code.dataset.highlighted) return;
+    code.dataset.highlighted = "1";
+    // 用 textContent 读取纯文本，避免匹配到已有的 span 属性
+    let html = code.textContent || "";
+    // 转义残留的 HTML 实体
+    html = html.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     // strings
     html = html.replace(/(["'`])(?:(?!\1)[^\\]|\\.)*?\1/g, '<span class="tok-str">$&</span>');
     // numbers
@@ -216,8 +220,8 @@ function highlightAllCodeBlocks() {
     SQL_FN.forEach(fn => { const re = new RegExp(`\\b(${fn})\\b(?=\\s*\\()`,"gi"); html = html.replace(re, '<span class="tok-fn">$1</span>'); });
     // Docker/cmd
     html = html.replace(/\b(docker|pull|push|run|build|exec|ps|logs|stop|start|restart|rm|rmi|tag|login|logout|compose|git|clone|cargo|psql)\b/g, '<span class="tok-cmd">$1</span>');
-    // imports
-    html = html.replace(/\b(import|from|as|def|class|return|if|else|for|while|try|except|with|in|not|and|or|True|False|None|print|pass|const|let|var|function|async|await|export|default|require|include|use|pub|fn|let|mut|struct|impl|new|null|var|err|ok|end|do|begin|rescue|ensure|yield|self|nil|module|when|case|of|receive|send|catch)\b/g, '<span class="tok-kw">$1</span>');
+    // lang keywords
+    html = html.replace(/\b(import|from|def|return|if|else|for|while|try|except|with|in|not|and|or|True|False|None|print|pass|const|let|var|function|async|await|export|default|require|include|use|pub|fn|let|mut|struct|impl|new|null|var|err|ok|end|do|begin|rescue|ensure|yield|self|nil|module|when|case|of|receive|send|catch|as|class)\b/g, '<span class="tok-kw">$1</span>');
     // types
     html = html.replace(/\b(int|char|void|double|float|long|short|unsigned|signed|string|bool|error|String|boolean|array|Number|Int|Bool|String|IO|Maybe|Either|Option|Result|Vec|HashMap|BTreeMap|Connection|Statement|ResultSet|PGconn|PGresult|Client|Pool)\b/g, '<span class="tok-type">$1</span>');
     // methods after dots

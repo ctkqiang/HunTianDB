@@ -15,3 +15,5 @@ dist/
 .idea/
 .vscode/
 /landing/.nuxt
+/landing/.output/
+/landing/dist/

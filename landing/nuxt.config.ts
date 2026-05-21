@@ -3,7 +3,20 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
   css: ["~/assets/css/main.css"],
   devServer: { port: 8000 },
+
+  // S3/CloudFront 静态托管：纯客户端渲染 + 预生成
+  ssr: false,
+
+  nitro: {
+    preset: "static",
+  },
+
+  imports: {
+    dirs: ["composables"],
+  },
+
   app: {
+    baseURL: "/",
     head: {
       title: "HunTianDB — Timeseries Security Database",
       meta: [
@@ -19,5 +32,10 @@ export default defineNuxtConfig({
         { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" },
       ],
     },
+  },
+
+  routeRules: {
+    "/": { prerender: true },
+    "/docs": { prerender: true },
   },
 });

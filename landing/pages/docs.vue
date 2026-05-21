@@ -107,7 +107,10 @@ function highlightBlock(el: HTMLElement) {
   const codeEl = el.querySelector("code");
   if (!codeEl || codeEl.querySelector(".tok-kw")) return; // already highlighted
   const lang = el.getAttribute("data-lang") || "";
-  let html = codeEl.innerHTML;
+  if (codeEl.dataset.highlighted) return;
+  codeEl.dataset.highlighted = "1";
+  let html = codeEl.textContent || "";
+  html = html.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
   // String literals
   html = html.replace(/(["'`])(?:(?!\1)[^\\]|\\.)*?\1/g, '<span class="tok-str">$&</span>');
