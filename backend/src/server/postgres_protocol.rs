@@ -17,6 +17,7 @@ pub struct StartupMessage {
     pub protocol_version: i32,
     pub parameters: Vec<(String, String)>,
 }
+
 #[derive(Debug)]
 pub struct QueryMessage {
     pub query_string: String,
@@ -46,6 +47,14 @@ impl PostgresProtocol {
         }
     }
 
+    /**
+     * 处理 PostgreSQL 连接
+     * 处理 SSL 请求、认证、查询等流程。
+     * 支持 Start-up → Authentication → Query 流程。
+     * 已接入内存数据库引擎：INSERT/SELECT/CREATE TABLE 真实执行。
+     * 支持参数化查询。
+     * 支持事务。
+     */
     pub async fn handle_connection(&mut self) -> HunTianResult<()> {
         self.handle_ssl_request().await?;
         let startup = self.read_startup_message().await?;
@@ -72,7 +81,9 @@ impl PostgresProtocol {
             }
         }
         // AuthenticationOk — PG协议要求认证成功后必须发送
-        self.stream.write_all(&[b'R', 0, 0, 0, 8, 0, 0, 0, 0]).await?;
+        self.stream
+            .write_all(&[b'R', 0, 0, 0, 8, 0, 0, 0, 0])
+            .await?;
         self.send_parameter_status("server_version", "9.6.0-HunTianDB")
             .await?;
         self.send_parameter_status("server_encoding", "UTF8")
@@ -129,8 +140,6 @@ impl PostgresProtocol {
         Ok(())
     }
 
-    // ---- handlers ----
-
     /// 扩展协议 Execute 阶段: Describe 已发送 RowDescription，此处跳过只发数据行。
     async fn handle_query_extended(&mut self, sql: &str) -> HunTianResult<()> {
         self.handle_query_inner(sql, true).await
@@ -160,7 +169,8 @@ impl PostgresProtocol {
             if skip_desc {
                 // 扩展协议: 只发数据行
                 self.send_system_rows(&result).await?;
-                self.send_command_complete("SELECT", result.rows.len() as u32).await?;
+                self.send_command_complete("SELECT", result.rows.len() as u32)
+                    .await?;
             } else {
                 self.respond_system_query(result).await?;
             }
@@ -211,7 +221,10 @@ impl PostgresProtocol {
             let cols = self.parse_columns(&rest[lp..]);
             let result = { self.db.write().create_table(&name, cols) };
             match result {
-                Ok(()) => { self.db.write().flush_wal(); self.send_command_complete("CREATE", 0).await? },
+                Ok(()) => {
+                    self.db.write().flush_wal();
+                    self.send_command_complete("CREATE", 0).await?
+                }
                 Err(e) => self.send_error(&e).await?,
             }
         } else if su.starts_with("DROP TABLE ") {
@@ -222,7 +235,10 @@ impl PostgresProtocol {
                 .trim_end_matches(';');
             let result = { self.db.write().drop_table(name) };
             match result {
-                Ok(()) => { self.db.write().flush_wal(); self.send_command_complete("DROP", 0).await? },
+                Ok(()) => {
+                    self.db.write().flush_wal();
+                    self.send_command_complete("DROP", 0).await?
+                }
                 Err(e) => self.send_error(&e).await?,
             }
         } else if su.starts_with("INSERT INTO ") {
@@ -237,7 +253,9 @@ impl PostgresProtocol {
                 }
             }
             if inserted > 0 {
-                { self.db.write().flush_wal(); }
+                {
+                    self.db.write().flush_wal();
+                }
                 self.send_command_complete("INSERT", inserted as u32)
                     .await?;
             } else {
@@ -255,89 +273,98 @@ impl PostgresProtocol {
                         } else {
                             self.send_multi_row_desc(&cols).await?;
                             for row in &rows {
-                                let row_map: std::collections::HashMap<String, serde_json::Value> = row
-                                    .as_object()
-                                    .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
-                                    .unwrap_or_default();
+                                let row_map: std::collections::HashMap<String, serde_json::Value> =
+                                    row.as_object()
+                                        .map(|m| {
+                                            m.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+                                        })
+                                        .unwrap_or_default();
                                 self.send_multi_data_row(&cols, &row_map).await?;
                             }
                         }
-                        self.send_command_complete("SELECT", rows.len() as u32).await?;
+                        self.send_command_complete("SELECT", rows.len() as u32)
+                            .await?;
                     }
                     Err(msg) => {
                         self.send_error(&msg).await?;
                     }
                 }
             } else {
-            let tbl = self.extract_table_name(s);
-            let limit = self.extract_limit(s).unwrap_or(100).min(1000);
-            let desc = su.contains("DESC");
-            let query_result = {
-                let db = self.db.read();
-                db.get_table(&tbl).map(|t| {
-                    (
-                        t.columns.iter().map(|c| c.name.clone()).collect::<Vec<_>>(),
-                        t.select(limit, desc),
-                    )
-                })
-            };
-            if let Some((names, rows)) = query_result {
-                if names.is_empty() {
-                    self.send_empty_result().await?;
-                } else {
-                    self.send_multi_row_desc(&names).await?;
-                    for row in &rows {
-                        self.send_multi_data_row(&names, row).await?;
+                let tbl = self.extract_table_name(s);
+                let limit = self.extract_limit(s).unwrap_or(100).min(1000);
+                let desc = su.contains("DESC");
+                let query_result = {
+                    let db = self.db.read();
+                    db.get_table(&tbl).map(|t| {
+                        (
+                            t.columns.iter().map(|c| c.name.clone()).collect::<Vec<_>>(),
+                            t.select(limit, desc),
+                        )
+                    })
+                };
+                if let Some((names, rows)) = query_result {
+                    if names.is_empty() {
+                        self.send_empty_result().await?;
+                    } else {
+                        self.send_multi_row_desc(&names).await?;
+                        for row in &rows {
+                            self.send_multi_data_row(&names, row).await?;
+                        }
                     }
+                    self.send_command_complete("SELECT", rows.len() as u32)
+                        .await?;
+                } else if su.contains("VERSION()") {
+                    self.send_row_desc("version").await?;
+                    self.send_data_row("PostgreSQL 9.6.0 HunTianDB v1.0")
+                        .await?;
+                    self.send_command_complete("SELECT", 1).await?;
+                } else if su.contains("CURRENT_DATABASE") {
+                    self.send_row_desc("current_database").await?;
+                    self.send_data_row("huntiandb").await?;
+                    self.send_command_complete("SELECT", 1).await?;
+                } else if su.contains("PG_DATABASE") {
+                    self.send_row_desc("datname").await?;
+                    self.send_data_row("huntiandb").await?;
+                    self.send_command_complete("SELECT", 1).await?;
+                } else if su.contains("PG_CLASS") && su.contains("RELKIND") {
+                    // DBeaver / pgAdmin table list query — return actual tables with metadata
+                    let names = { self.db.read().table_names() };
+                    let cols = vec![
+                        "Schema".to_string(),
+                        "Name".to_string(),
+                        "Type".to_string(),
+                        "Owner".to_string(),
+                    ];
+                    self.send_multi_row_desc(&cols).await?;
+                    for n in &names {
+                        let mut row = HashMap::new();
+                        row.insert("Schema".to_string(), Value::String("public".into()));
+                        row.insert("Name".to_string(), Value::String(n.clone()));
+                        row.insert("Type".to_string(), Value::String("table".into()));
+                        row.insert("Owner".to_string(), Value::String("admin".into()));
+                        self.send_multi_data_row(&cols, &row).await?;
+                    }
+                    self.send_command_complete("SELECT", names.len() as u32)
+                        .await?;
+                } else if su.contains("PG_CLASS") {
+                    // psql \dt — return actual tables (simple format)
+                    let names = { self.db.read().table_names() };
+                    self.send_row_desc("relname").await?;
+                    for n in &names {
+                        self.send_data_row(n).await?;
+                    }
+                    self.send_command_complete("SELECT", names.len() as u32)
+                        .await?;
+                } else if su.contains("PG_NAMESPACE") {
+                    self.send_row_desc("nspname").await?;
+                    self.send_data_row("public").await?;
+                    self.send_command_complete("SELECT", 1).await?;
+                } else if su.contains("PG_") || su.contains("INFORMATION_SCHEMA") {
+                    self.send_empty_result().await?;
+                    self.send_command_complete("SELECT", 0).await?;
+                } else {
+                    self.send_error(&format!("表 '{}' 不存在", tbl)).await?;
                 }
-                self.send_command_complete("SELECT", rows.len() as u32)
-                    .await?;
-            } else if su.contains("VERSION()") {
-                self.send_row_desc("version").await?;
-                self.send_data_row("PostgreSQL 9.6.0 HunTianDB v1.0")
-                    .await?;
-                self.send_command_complete("SELECT", 1).await?;
-            } else if su.contains("CURRENT_DATABASE") {
-                self.send_row_desc("current_database").await?;
-                self.send_data_row("huntiandb").await?;
-                self.send_command_complete("SELECT", 1).await?;
-            } else if su.contains("PG_DATABASE") {
-                self.send_row_desc("datname").await?;
-                self.send_data_row("huntiandb").await?;
-                self.send_command_complete("SELECT", 1).await?;
-            } else if su.contains("PG_CLASS") && su.contains("RELKIND") {
-                // DBeaver / pgAdmin table list query — return actual tables with metadata
-                let names = { self.db.read().table_names() };
-                let cols = vec!["Schema".to_string(), "Name".to_string(), "Type".to_string(), "Owner".to_string()];
-                self.send_multi_row_desc(&cols).await?;
-                for n in &names {
-                    let mut row = HashMap::new();
-                    row.insert("Schema".to_string(), Value::String("public".into()));
-                    row.insert("Name".to_string(), Value::String(n.clone()));
-                    row.insert("Type".to_string(), Value::String("table".into()));
-                    row.insert("Owner".to_string(), Value::String("admin".into()));
-                    self.send_multi_data_row(&cols, &row).await?;
-                }
-                self.send_command_complete("SELECT", names.len() as u32).await?;
-            } else if su.contains("PG_CLASS") {
-                // psql \dt — return actual tables (simple format)
-                let names = { self.db.read().table_names() };
-                self.send_row_desc("relname").await?;
-                for n in &names {
-                    self.send_data_row(n).await?;
-                }
-                self.send_command_complete("SELECT", names.len() as u32)
-                    .await?;
-            } else if su.contains("PG_NAMESPACE") {
-                self.send_row_desc("nspname").await?;
-                self.send_data_row("public").await?;
-                self.send_command_complete("SELECT", 1).await?;
-            } else if su.contains("PG_") || su.contains("INFORMATION_SCHEMA") {
-                self.send_empty_result().await?;
-                self.send_command_complete("SELECT", 0).await?;
-            } else {
-                self.send_error(&format!("表 '{}' 不存在", tbl)).await?;
-            }
             } // close else block from aggregate check
         } else if su.starts_with("CREATE USER ") || su.starts_with("CREATE ROLE ") {
             let rest = s
@@ -517,11 +544,17 @@ impl PostgresProtocol {
         let su = sql.to_uppercase();
 
         // DDL/DML/SET — 无结果行，发送 NoData
-        if su.starts_with("SET ") || su.starts_with("RESET ") || su.starts_with("BEGIN")
-            || su.starts_with("COMMIT") || su.starts_with("ROLLBACK")
-            || su.starts_with("INSERT ") || su.starts_with("CREATE ")
-            || su.starts_with("DROP ") || su.starts_with("DELETE ")
-            || su.starts_with("DEALLOCATE ") || su.starts_with("DISCARD ")
+        if su.starts_with("SET ")
+            || su.starts_with("RESET ")
+            || su.starts_with("BEGIN")
+            || su.starts_with("COMMIT")
+            || su.starts_with("ROLLBACK")
+            || su.starts_with("INSERT ")
+            || su.starts_with("CREATE ")
+            || su.starts_with("DROP ")
+            || su.starts_with("DELETE ")
+            || su.starts_with("DEALLOCATE ")
+            || su.starts_with("DISCARD ")
         {
             self.send_no_data().await?;
             return Ok(());
@@ -532,7 +565,8 @@ impl PostgresProtocol {
             if sys_result.columns.is_empty() {
                 self.send_no_data().await?;
             } else {
-                let col_names: Vec<String> = sys_result.columns.iter().map(|(n, _)| n.clone()).collect();
+                let col_names: Vec<String> =
+                    sys_result.columns.iter().map(|(n, _)| n.clone()).collect();
                 self.send_multi_row_desc(&col_names).await?;
             }
             return Ok(());
@@ -541,7 +575,8 @@ impl PostgresProtocol {
         let tbl = self.extract_table_name(sql);
         let cols: Option<Vec<String>> = {
             let db = self.db.read();
-            db.get_table(&tbl).map(|t| t.columns.iter().map(|c| c.name.clone()).collect())
+            db.get_table(&tbl)
+                .map(|t| t.columns.iter().map(|c| c.name.clone()).collect())
         };
         if let Some(cols) = cols {
             self.send_multi_row_desc(&cols).await?;
@@ -812,7 +847,8 @@ impl PostgresProtocol {
                 }
                 self.send_multi_data_row(&col_names, &map).await?;
             }
-            self.send_command_complete("SELECT", result.rows.len() as u32).await?;
+            self.send_command_complete("SELECT", result.rows.len() as u32)
+                .await?;
         }
         Ok(())
     }
@@ -946,9 +982,14 @@ fn pg_aggregate_query(
         let select_part = su[7..gb_pos].trim();
         let after_gb = su[gb_pos + 10..].trim();
         let group_col = after_gb
-            .split(" ORDER BY ").next().unwrap_or("")
-            .split(" LIMIT ").next().unwrap_or("")
-            .trim().to_string();
+            .split(" ORDER BY ")
+            .next()
+            .unwrap_or("")
+            .split(" LIMIT ")
+            .next()
+            .unwrap_or("")
+            .trim()
+            .to_string();
 
         for agg_fn in &agg_fns {
             let agg_prefix = format!("{agg_fn}(");
@@ -992,8 +1033,12 @@ struct SystemQueryResult {
 /// 匹配常见系统目录查询，返回模拟结果。
 fn try_handle_system_query(su: &str, _raw: &str) -> Option<SystemQueryResult> {
     // SHOW TABLES / USERS / COLUMNS / DESCRIBE — 交给常规处理器
-    if su.starts_with("SHOW TABLES") || su.starts_with("SHOW USERS") || su.starts_with("SHOW COLUMNS")
-        || su.starts_with("DESCRIBE ") || su.starts_with("DESC ") {
+    if su.starts_with("SHOW TABLES")
+        || su.starts_with("SHOW USERS")
+        || su.starts_with("SHOW COLUMNS")
+        || su.starts_with("DESCRIBE ")
+        || su.starts_with("DESC ")
+    {
         return None;
     }
 
@@ -1009,9 +1054,18 @@ fn try_handle_system_query(su: &str, _raw: &str) -> Option<SystemQueryResult> {
     if su.starts_with("SELECT CURRENT_SCHEMA()") || su.contains("CURRENT_SCHEMA()") {
         let mut cols = vec![("current_schema".into(), "name".into())];
         let mut row = vec!["public".into()];
-        if su.contains("SESSION_USER") { cols.push(("session_user".into(), "name".into())); row.push("admin".into()); }
-        if su.contains("CURRENT_USER") { cols.push(("current_user".into(), "name".into())); row.push("admin".into()); }
-        return Some(SystemQueryResult { columns: cols, rows: vec![row] });
+        if su.contains("SESSION_USER") {
+            cols.push(("session_user".into(), "name".into()));
+            row.push("admin".into());
+        }
+        if su.contains("CURRENT_USER") {
+            cols.push(("current_user".into(), "name".into()));
+            row.push("admin".into());
+        }
+        return Some(SystemQueryResult {
+            columns: cols,
+            rows: vec![row],
+        });
     }
     if su.starts_with("SELECT CURRENT_DATABASE()") {
         return Some(SystemQueryResult {
@@ -1022,15 +1076,25 @@ fn try_handle_system_query(su: &str, _raw: &str) -> Option<SystemQueryResult> {
 
     // SHOW xxx / current_setting
     if su.starts_with("SELECT CURRENT_SETTING(") || su.starts_with("SHOW ") {
-        let value = if su.contains("CLIENT_ENCODING") { "UTF8" }
-            else if su.contains("STANDARD_CONFORMING_STRINGS") { "on" }
-            else if su.contains("SERVER_VERSION") { "16.0" }
-            else if su.contains("TIMEZONE") { "UTC" }
-            else if su.contains("DATESTYLE") { "ISO, MDY" }
-            else if su.contains("MAX_IDENTIFIER_LENGTH") { "63" }
-            else if su.contains("TRANSACTION_ISOLATION") { "read committed" }
-            else if su.contains("APPLICATION_NAME") { "DBeaver" }
-            else { "on" };
+        let value = if su.contains("CLIENT_ENCODING") {
+            "UTF8"
+        } else if su.contains("STANDARD_CONFORMING_STRINGS") {
+            "on"
+        } else if su.contains("SERVER_VERSION") {
+            "16.0"
+        } else if su.contains("TIMEZONE") {
+            "UTC"
+        } else if su.contains("DATESTYLE") {
+            "ISO, MDY"
+        } else if su.contains("MAX_IDENTIFIER_LENGTH") {
+            "63"
+        } else if su.contains("TRANSACTION_ISOLATION") {
+            "read committed"
+        } else if su.contains("APPLICATION_NAME") {
+            "DBeaver"
+        } else {
+            "on"
+        };
         return Some(SystemQueryResult {
             columns: vec![(value.to_string(), "text".into())],
             rows: vec![vec![value.into()]],
@@ -1040,18 +1104,64 @@ fn try_handle_system_query(su: &str, _raw: &str) -> Option<SystemQueryResult> {
     // pg_catalog.pg_settings
     if su.contains("PG_SETTINGS") {
         return Some(SystemQueryResult {
-            columns: vec![("name".into(),"text".into()),("setting".into(),"text".into()),
-                ("unit".into(),"text".into()),("category".into(),"text".into()),
-                ("short_desc".into(),"text".into()),("extra_desc".into(),"text".into()),
-                ("context".into(),"text".into()),("vartype".into(),"text".into()),
-                ("source".into(),"text".into()),("min_val".into(),"text".into()),
-                ("max_val".into(),"text".into()),("enumvals".into(),"text".into()),
-                ("boot_val".into(),"text".into()),("reset_val".into(),"text".into()),
-                ("sourcefile".into(),"text".into()),("sourceline".into(),"text".into()),
-                ("pending_restart".into(),"text".into())],
+            columns: vec![
+                ("name".into(), "text".into()),
+                ("setting".into(), "text".into()),
+                ("unit".into(), "text".into()),
+                ("category".into(), "text".into()),
+                ("short_desc".into(), "text".into()),
+                ("extra_desc".into(), "text".into()),
+                ("context".into(), "text".into()),
+                ("vartype".into(), "text".into()),
+                ("source".into(), "text".into()),
+                ("min_val".into(), "text".into()),
+                ("max_val".into(), "text".into()),
+                ("enumvals".into(), "text".into()),
+                ("boot_val".into(), "text".into()),
+                ("reset_val".into(), "text".into()),
+                ("sourcefile".into(), "text".into()),
+                ("sourceline".into(), "text".into()),
+                ("pending_restart".into(), "text".into()),
+            ],
             rows: vec![
-                vec!["client_encoding".into(),"UTF8".into(),String::new(),"Client Connection Defaults".into(),"Sets the client's character set encoding.".into(),String::new(),"user".into(),"string".into(),"session".into(),String::new(),String::new(),String::new(),"UTF8".into(),"UTF8".into(),String::new(),String::new(),"f".into()],
-                vec!["server_version".into(),"16.0".into(),String::new(),"Reporting and Logging".into(),"Shows the server version.".into(),String::new(),"internal".into(),"string".into(),"default".into(),String::new(),String::new(),String::new(),"16.0".into(),"16.0".into(),String::new(),String::new(),"f".into()],
+                vec![
+                    "client_encoding".into(),
+                    "UTF8".into(),
+                    String::new(),
+                    "Client Connection Defaults".into(),
+                    "Sets the client's character set encoding.".into(),
+                    String::new(),
+                    "user".into(),
+                    "string".into(),
+                    "session".into(),
+                    String::new(),
+                    String::new(),
+                    String::new(),
+                    "UTF8".into(),
+                    "UTF8".into(),
+                    String::new(),
+                    String::new(),
+                    "f".into(),
+                ],
+                vec![
+                    "server_version".into(),
+                    "16.0".into(),
+                    String::new(),
+                    "Reporting and Logging".into(),
+                    "Shows the server version.".into(),
+                    String::new(),
+                    "internal".into(),
+                    "string".into(),
+                    "default".into(),
+                    String::new(),
+                    String::new(),
+                    String::new(),
+                    "16.0".into(),
+                    "16.0".into(),
+                    String::new(),
+                    String::new(),
+                    "f".into(),
+                ],
             ],
         });
     }
@@ -1059,26 +1169,66 @@ fn try_handle_system_query(su: &str, _raw: &str) -> Option<SystemQueryResult> {
     // pg_catalog.pg_database
     if su.contains("PG_DATABASE") {
         return Some(SystemQueryResult {
-            columns: vec![("datname".into(),"name".into()),("datdba".into(),"oid".into()),
-                ("encoding".into(),"int4".into()),("datcollate".into(),"name".into()),
-                ("datctype".into(),"name".into()),("datistemplate".into(),"bool".into()),
-                ("datallowconn".into(),"bool".into()),("datconnlimit".into(),"int4".into()),
-                ("datlastsysoid".into(),"oid".into()),("datfrozenxid".into(),"xid".into()),
-                ("datminmxid".into(),"xid".into()),("dattablespace".into(),"oid".into()),
-                ("datacl".into(),"text[]".into())],
-            rows: vec![vec!["huntiandb".into(),"10".into(),"6".into(),"en_US.UTF-8".into(),"en_US.UTF-8".into(),"f".into(),"t".into(),"-1".into(),"0".into(),"0".into(),"0".into(),"1663".into(),String::new()]],
+            columns: vec![
+                ("datname".into(), "name".into()),
+                ("datdba".into(), "oid".into()),
+                ("encoding".into(), "int4".into()),
+                ("datcollate".into(), "name".into()),
+                ("datctype".into(), "name".into()),
+                ("datistemplate".into(), "bool".into()),
+                ("datallowconn".into(), "bool".into()),
+                ("datconnlimit".into(), "int4".into()),
+                ("datlastsysoid".into(), "oid".into()),
+                ("datfrozenxid".into(), "xid".into()),
+                ("datminmxid".into(), "xid".into()),
+                ("dattablespace".into(), "oid".into()),
+                ("datacl".into(), "text[]".into()),
+            ],
+            rows: vec![vec![
+                "huntiandb".into(),
+                "10".into(),
+                "6".into(),
+                "en_US.UTF-8".into(),
+                "en_US.UTF-8".into(),
+                "f".into(),
+                "t".into(),
+                "-1".into(),
+                "0".into(),
+                "0".into(),
+                "0".into(),
+                "1663".into(),
+                String::new(),
+            ]],
         });
     }
 
     // pg_catalog.pg_roles
     if su.contains("PG_ROLES") || su.contains("PG_USER") || su.contains("PG_AUTHID") {
         return Some(SystemQueryResult {
-            columns: vec![("rolname".into(),"name".into()),("rolsuper".into(),"bool".into()),
-                ("rolinherit".into(),"bool".into()),("rolcreaterole".into(),"bool".into()),
-                ("rolcreatedb".into(),"bool".into()),("rolcanlogin".into(),"bool".into()),
-                ("rolreplication".into(),"bool".into()),("rolconnlimit".into(),"int4".into()),
-                ("rolpassword".into(),"text".into()),("rolvaliduntil".into(),"timestamptz".into())],
-            rows: vec![vec!["admin".into(),"t".into(),"t".into(),"t".into(),"t".into(),"t".into(),"t".into(),"-1".into(),"********".into(),String::new()]],
+            columns: vec![
+                ("rolname".into(), "name".into()),
+                ("rolsuper".into(), "bool".into()),
+                ("rolinherit".into(), "bool".into()),
+                ("rolcreaterole".into(), "bool".into()),
+                ("rolcreatedb".into(), "bool".into()),
+                ("rolcanlogin".into(), "bool".into()),
+                ("rolreplication".into(), "bool".into()),
+                ("rolconnlimit".into(), "int4".into()),
+                ("rolpassword".into(), "text".into()),
+                ("rolvaliduntil".into(), "timestamptz".into()),
+            ],
+            rows: vec![vec![
+                "admin".into(),
+                "t".into(),
+                "t".into(),
+                "t".into(),
+                "t".into(),
+                "t".into(),
+                "t".into(),
+                "-1".into(),
+                "********".into(),
+                String::new(),
+            ]],
         });
     }
 
@@ -1091,29 +1241,101 @@ fn try_handle_system_query(su: &str, _raw: &str) -> Option<SystemQueryResult> {
             });
         }
         return Some(SystemQueryResult {
-            columns: vec![("oid".into(),"oid".into()),("typname".into(),"name".into()),
-                ("typlen".into(),"int2".into()),("typbyval".into(),"bool".into()),
-                ("typtype".into(),"char".into()),("typcategory".into(),"char".into())],
+            columns: vec![
+                ("oid".into(), "oid".into()),
+                ("typname".into(), "name".into()),
+                ("typlen".into(), "int2".into()),
+                ("typbyval".into(), "bool".into()),
+                ("typtype".into(), "char".into()),
+                ("typcategory".into(), "char".into()),
+            ],
             rows: vec![
-                vec!["23".into(),"int4".into(),"4".into(),"t".into(),"b".into(),"N".into()],
-                vec!["20".into(),"int8".into(),"8".into(),"f".into(),"b".into(),"N".into()],
-                vec!["25".into(),"text".into(),"-1".into(),"f".into(),"b".into(),"S".into()],
-                vec!["1043".into(),"varchar".into(),"-1".into(),"f".into(),"b".into(),"S".into()],
-                vec!["16".into(),"bool".into(),"1".into(),"t".into(),"b".into(),"C".into()],
-                vec!["21".into(),"int2".into(),"2".into(),"t".into(),"b".into(),"N".into()],
-                vec!["700".into(),"float4".into(),"4".into(),"t".into(),"b".into(),"N".into()],
-                vec!["701".into(),"float8".into(),"8".into(),"t".into(),"b".into(),"N".into()],
+                vec![
+                    "23".into(),
+                    "int4".into(),
+                    "4".into(),
+                    "t".into(),
+                    "b".into(),
+                    "N".into(),
+                ],
+                vec![
+                    "20".into(),
+                    "int8".into(),
+                    "8".into(),
+                    "f".into(),
+                    "b".into(),
+                    "N".into(),
+                ],
+                vec![
+                    "25".into(),
+                    "text".into(),
+                    "-1".into(),
+                    "f".into(),
+                    "b".into(),
+                    "S".into(),
+                ],
+                vec![
+                    "1043".into(),
+                    "varchar".into(),
+                    "-1".into(),
+                    "f".into(),
+                    "b".into(),
+                    "S".into(),
+                ],
+                vec![
+                    "16".into(),
+                    "bool".into(),
+                    "1".into(),
+                    "t".into(),
+                    "b".into(),
+                    "C".into(),
+                ],
+                vec![
+                    "21".into(),
+                    "int2".into(),
+                    "2".into(),
+                    "t".into(),
+                    "b".into(),
+                    "N".into(),
+                ],
+                vec![
+                    "700".into(),
+                    "float4".into(),
+                    "4".into(),
+                    "t".into(),
+                    "b".into(),
+                    "N".into(),
+                ],
+                vec![
+                    "701".into(),
+                    "float8".into(),
+                    "8".into(),
+                    "t".into(),
+                    "b".into(),
+                    "N".into(),
+                ],
             ],
         });
     }
 
     // 其他 pg_catalog — 空结果
-    if su.contains("PG_CATALOG.") || su.contains("PG_ATTRIBUTE") || su.contains("PG_INDEX")
-        || su.contains("PG_CONSTRAINT") || su.contains("PG_STATISTIC") || su.contains("PG_PROC")
-        || su.contains("PG_DESCRIPTION") || su.contains("PG_TABLESPACE") || su.contains("PG_COLLATION")
-        || su.contains("PG_AM") || su.contains("PG_OPCLASS") || su.contains("PG_EXTENSION")
+    if su.contains("PG_CATALOG.")
+        || su.contains("PG_ATTRIBUTE")
+        || su.contains("PG_INDEX")
+        || su.contains("PG_CONSTRAINT")
+        || su.contains("PG_STATISTIC")
+        || su.contains("PG_PROC")
+        || su.contains("PG_DESCRIPTION")
+        || su.contains("PG_TABLESPACE")
+        || su.contains("PG_COLLATION")
+        || su.contains("PG_AM")
+        || su.contains("PG_OPCLASS")
+        || su.contains("PG_EXTENSION")
     {
-        return Some(SystemQueryResult { columns: vec![], rows: vec![] });
+        return Some(SystemQueryResult {
+            columns: vec![],
+            rows: vec![],
+        });
     }
 
     None

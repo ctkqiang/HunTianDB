@@ -1,0 +1,90 @@
+/* ── HunTianDB Landing — Pure CSS Design System ── */
+
+:root {
+  --db-900: #0f0f1a;
+  --db-850: #121220;
+  --db-800: #16162b;
+  --db-700: #1e1e3a;
+  --db-600: #2a2a4a;
+  --db-500: #3a3a5a;
+  --accent: #e63946;
+  --accent-light: #ff6b6b;
+  --gold: #f4a261;
+  --teal: #2ec4b6;
+  --blue: #457b9d;
+  --text: #e0e0e0;
+  --text-dim: #8a8a9a;
+  --white-5: rgba(255,255,255,0.05);
+  --white-8: rgba(255,255,255,0.08);
+  --white-10: rgba(255,255,255,0.1);
+  --radius: 16px;
+  --font: "Inter", system-ui, sans-serif;
+  --mono: "JetBrains Mono", monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font);
+  background: var(--db-900);
+  color: var(--text);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+::selection { background: rgba(230,57,70,0.4); color: #fff; }
+
+/* ── Animations ── */
+@keyframes float {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+@keyframes glow {
+  0% { box-shadow: 0 0 20px rgba(230,57,70,0.15); }
+  100% { box-shadow: 0 0 50px rgba(230,57,70,0.5); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes gridMove {
+  0% { background-position: 0 0; }
+  100% { background-position: 50px 50px; }
+}
+@keyframes pulse-dot {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ── Utility Classes ── */
+.gradient-text {
+  background: linear-gradient(135deg, var(--accent-light), var(--accent), var(--gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.gradient-text-teal {
+  background: linear-gradient(135deg, var(--teal), var(--blue), var(--accent-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.glass {
+  background: rgba(30,30,58,0.6);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--white-5);
+  border-radius: var(--radius);
+}
+.glow-border {
+  box-shadow: 0 0 0 1px rgba(230,57,70,0.3), 0 0 30px rgba(230,57,70,0.1);
+}
