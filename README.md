@@ -10,10 +10,10 @@
 
 ```bash
 # 国际 (Docker Hub)
-docker pull ctkqiang/huntianandb:v0.1.3.beta
+docker pull ctkqiang/huntianandb:v0.1.6
 
 # 中国 (阿里云容器镜像)
-docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.3.beta
+docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.6
 
 # 运行
 docker run -d \

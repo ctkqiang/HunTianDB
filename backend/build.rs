@@ -9,6 +9,6 @@ fn main() {
         .to_string();
 
     println!("cargo:rustc-env=HUNTIAN_VERSION={version}");
-    println!("cargo:rustc-env=HUNTIAN_BETA_TAG=v{version}.beta");
+    println!("cargo:rustc-env=HUNTIAN_BETA_TAG=v{version}");
     println!("cargo:rerun-if-changed=../VERSION");
 }

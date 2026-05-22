@@ -11,7 +11,7 @@ Timeseries security database with PostgreSQL Wire Protocol v3.0 compatibility.
 docker pull ctkqiang/huntianandb:952d3f4e19adb464cd5da2d02edeed1d9a89781e
 
 # China (Alibaba Cloud Container Registry)
-docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.3.beta
+docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.6
 
 # Run
 docker run -d \

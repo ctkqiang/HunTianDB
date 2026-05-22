@@ -104,7 +104,7 @@ print(cur.fetchone())  # ('1000',)`,
   changelog: {
     heading: "版本更新",
     releases: [
-      { version: "v0.1.3", date: "2026-05-20", changes: ["原生 DBeaver/pgAdmin 兼容：系统目录查询拦截器", "扩展协议支持：Describe/Execute 消息正确处理", "异步无锁 WAL：crossbeam channel + 后台写入线程", "列式聚合缓存：向量化 f64 切片迭代", "SHOW USERS 与 INSERT INTO users 支持", "Web Portal 多标签页 Monaco SQL 编辑器"] },
+      { version: "v0.1.6", date: "2026-05-20", changes: ["原生 DBeaver/pgAdmin 兼容：系统目录查询拦截器", "扩展协议支持：Describe/Execute 消息正确处理", "异步无锁 WAL：crossbeam channel + 后台写入线程", "列式聚合缓存：向量化 f64 切片迭代", "SHOW USERS 与 INSERT INTO users 支持", "Web Portal 多标签页 Monaco SQL 编辑器"] },
       { version: "v0.1.2", date: "2026-05-19", changes: ["Docker 单镜像部署：多阶段构建", "前后端合并为单二进制服务静态文件", "生产级 Prometheus 指标：直方图、仪表、计数器", "健康检查端点：/health、/ready", "CRC32 WAL 校验和 + LSN 检查点恢复框架", "慢查询日志：可配置阈值"] },
       { version: "v0.1.1", date: "2026-05-18", changes: ["Zstd 压缩 Bincode WAL 格式 (v3)，比 JSON 小 5 倍", "跨厂商基准测试套件 (MySQL, PostgreSQL, QuestDB, ClickHouse)", "Web Portal 仪表板：实时事件监控", "SQL 查询构建器：数据表浏览器与查询历史", "中英文国际化", "SCRAM-SHA-256 认证：基于角色的访问控制"] },
       { version: "v0.1.0", date: "2026-05-15", changes: ["首次发布：PostgreSQL Wire Protocol v3.0", "内存数据库引擎 + WAL 持久化", "SQL 支持：CREATE TABLE, INSERT, SELECT, 聚合函数", "REST API：JSON 查询接口", "DBeaver 连接兼容"] },
