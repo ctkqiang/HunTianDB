@@ -9,7 +9,7 @@
           <img src="/logo.png" alt="HunTianDB" class="logo-img" />
           <div class="brand-text-group">
             <span class="brand-text">HunTian<span class="accent">DB</span></span>
-            <span class="brand-version">v0.1.4</span>
+            <span class="brand-version">{{ VERSION }}</span>
           </div>
         </a>
 
@@ -87,11 +87,11 @@
       <div class="section-head"><h2>{{ t.quickstart.heading }}</h2><p>{{ t.quickstart.sub }}</p></div>
 
       <div class="steps">
-        <div class="step reveal"><div class="step-num">1</div><div class="step-content"><h3>{{ t.quickstart.step1.title }}</h3><p>{{ t.quickstart.step1.desc }}</p><pre><code>docker pull ctkqiang/huntiandb:v0.1.4.beta</code></pre><pre><code>docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.4.beta</code></pre></div></div>
+        <div class="step reveal"><div class="step-num">1</div><div class="step-content"><h3>{{ t.quickstart.step1.title }}</h3><p>{{ t.quickstart.step1.desc }}</p><pre><code>docker pull ctkqiang/huntiandb:{{ BETA_TAG }}</code></pre><pre><code>docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:{{ BETA_TAG }}</code></pre></div></div>
 
         <div class="step reveal"><div class="step-num">2</div><div class="step-content"><h3>{{ t.quickstart.step2.title }}</h3><p>{{ t.quickstart.step2.desc }}</p><pre><code>docker run -d -p 5408:5408 -p 3000:3000 -p 5490:5490 \
   -v huntian_data:/app/data \
-  ctkqiang/huntiandb:v0.1.4.beta</code></pre></div></div>
+  ctkqiang/huntiandb:{{ BETA_TAG }}</code></pre></div></div>
 
         <div class="step reveal"><div class="step-num">3</div><div class="step-content"><h3>{{ t.quickstart.step3.title }}</h3><p>{{ t.quickstart.step3.desc }}</p><div class="client-grid"><pre><code v-for="c in t.quickstart.clients" :key="c.label">{{ c.code }}</code></pre></div></div></div>
 
@@ -157,6 +157,7 @@ cd HuntianDB/backend && cargo run --release</code></pre></div></div>
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { Copy, Check, Database, Zap, Shield, Lock, BarChart3, Globe, Github, Gitlab, ChevronDown } from "lucide-vue-next";
 import { useI18n } from "~/composables/useI18n";
+import { VERSION, BETA_TAG } from "~/composables/useVersion";
 
 const { t, locale, setLocale } = useI18n();
 
