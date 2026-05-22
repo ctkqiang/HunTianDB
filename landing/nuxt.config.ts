@@ -4,6 +4,15 @@ export default defineNuxtConfig({
   css: ["~/assets/css/main.css"],
   devServer: { port: 8000 },
 
+  vite: {
+    server: {
+      watch: {
+        usePolling: true,
+        interval: 1000,
+      },
+    },
+  },
+
   // S3/CloudFront 静态托管：纯客户端渲染 + 预生成
   ssr: false,
 

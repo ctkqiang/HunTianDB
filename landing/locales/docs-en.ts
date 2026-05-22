@@ -35,7 +35,7 @@ REST API (axum)  +  PG Wire Protocol (tokio)
 <pre><code>docker pull ctkqiang/huntianandb:v0.1.3.beta
 docker run -d -p 5408:5408 -p 3000:3000 -p 5490:5490 \\
   -v huntian_data:/app/data \\
-  ctkqiang/huntiandb:v0.1.3.beta</code></pre>
+  ctkqiang/huntianandb:v0.1.3.beta</code></pre>
 
 <h3>Build from Source</h3>
 <pre><code>git clone https://github.com/ctkqiang/HunTianDB
@@ -347,103 +347,89 @@ Connection conn = DriverManager.getConnection(url, "admin", "admin123");</code><
       id: "examples",
       title: "Examples",
       items: [
-        { id: "python-examples", title: "Python Examples", content: `<h2>Python Usage Examples</h2>
-<p>All examples are in the <code>examples/</code> directory of the repository. Each script is a standalone working example demonstrating a specific feature.</p>
-
-<h3>Languages & Drivers</h3>
-<table><tr><th>Language</th><th>Directory</th><th>Driver</th></tr>
-<tr><td>Python</td><td><code>examples/python/</code></td><td>psycopg2</td></tr>
-<tr><td>TypeScript</td><td><code>examples/typescript/</code></td><td>pg</td></tr>
-<tr><td>Go</td><td><code>examples/go/</code></td><td>lib/pq</td></tr>
-<tr><td>Rust</td><td><code>examples/rust/</code></td><td>psql CLI</td></tr>
-<tr><td>C</td><td><code>examples/c/</code></td><td>libpq</td></tr>
-<tr><td>Erlang</td><td><code>examples/erlang/</code></td><td>epgsql</td></tr>
-<tr><td>Haskell</td><td><code>examples/haskell/</code></td><td>postgresql-simple</td></tr>
-<tr><td>Cangjie</td><td><code>examples/cangjie/</code></td><td>psql CLI</td></tr></table>
-<p>Each language has 4 topic scripts: <code>create_table</code>, <code>data_insert_totable</code>, <code>query_data</code>, <code>user_management</code>.</p>
-
-<h3>create_table.py</h3>
-<pre><code>import psycopg2
+        { id: "python-examples", title: "Python (psycopg2)", content: `<h2>Python</h2>
+<p>examples/python/ — 4 scripts: create_table, data_insert_totable, query_data, user_management</p>
+<pre><code># examples/python/create_table.py
+import psycopg2
 conn = psycopg2.connect(host="127.0.0.1", port=5408, user="admin", password="admin123", dbname="huntiandb")
-conn.autocommit = True
-cur = conn.cursor()
+conn.autocommit = True; cur = conn.cursor()
+cur.execute("CREATE TABLE security_events (id BIGINT PRIMARY KEY, timestamp BIGINT NOT NULL, user_id INT, session_id BIGINT, event_type SMALLINT, zone SMALLINT, status_code SMALLINT, ip_address INT, parent_event_id BIGINT, error_msg VARCHAR(256), payload TEXT)")
+# examples/python/data_insert_totable.py: batch insert with throughput measurement
+# examples/python/query_data.py: COUNT, SUM, AVG, GROUP BY
+# examples/python/user_management.py: SHOW USERS, INSERT INTO users</code></pre>` },
 
-cur.execute("""
-    CREATE TABLE security_events (
-        id BIGINT PRIMARY KEY, timestamp BIGINT NOT NULL,
-        user_id INT, session_id BIGINT, event_type SMALLINT,
-        zone SMALLINT, status_code SMALLINT, ip_address INT,
-        parent_event_id BIGINT, error_msg VARCHAR(256), payload TEXT
-    )
-""")
-cur.execute("SHOW TABLES")
-cur.execute("DESCRIBE security_events")</code></pre>
+        { id: "go-examples", title: "Go (lib/pq)", content: `<h2>Go</h2>
+<p>examples/go/ — PostgreSQL wire protocol via lib/pq</p>
+<pre><code>// examples/go/create_table.go
+db, _ := sql.Open("postgres", "host=127.0.0.1 port=5408 user=admin password=admin123 dbname=huntiandb sslmode=disable")
+db.Exec("CREATE TABLE security_events (id BIGINT PRIMARY KEY, timestamp BIGINT NOT NULL, user_id INT, session_id BIGINT, event_type SMALLINT, zone SMALLINT, status_code SMALLINT, ip_address INT, parent_event_id BIGINT, error_msg VARCHAR(256), payload TEXT)")
+// examples/go/data_insert_totable.go: fmt.Sprintf batch insert
+// examples/go/query_data.go: aggregation queries
+// examples/go/user_management.go: INSERT INTO users</code></pre>` },
 
-<h3>data_insert_totable.py</h3>
-<pre><code>import time
-ROWS, BATCH = 10000, 500
-PAYLOAD = "SEC_AUDIT_" * 60  # 360-byte security audit payload
+        { id: "ts-examples", title: "TypeScript (pg)", content: `<h2>TypeScript</h2>
+<p>examples/typescript/ — npm install pg</p>
+<pre><code>// examples/typescript/create_table.ts
+import { Client } from "pg";
+const c = new Client({ host: "127.0.0.1", port: 5408, user: "admin", password: "admin123", database: "huntiandb" });
+await c.connect();
+await c.query("CREATE TABLE security_events (id BIGINT PRIMARY KEY, timestamp BIGINT NOT NULL, user_id INT, session_id BIGINT, event_type SMALLINT, zone SMALLINT, status_code SMALLINT, ip_address INT, parent_event_id BIGINT, error_msg VARCHAR(256), payload TEXT)");
+// examples/typescript/data_insert_totable.ts: array push + join
+// examples/typescript/query_data.ts: async queries
+// examples/typescript/user_management.ts: SHOW USERS</code></pre>` },
 
-t0 = time.perf_counter()
-for b in range(0, ROWS, BATCH):
-    vals = []
-    for i in range(b, min(b + BATCH, ROWS)):
-        vals.append(f"({i},{1779200000000+i*1000},{i%500},{i*13},"
-                    f"{i%8+1},{i%5+1},{200 if i%10 else 500},"
-                    f"{0x0A000001+(i%255)},{i-1 if i>0 else 0},'OK','{PAYLOAD}')")
-    cur.execute(f"INSERT INTO security_events VALUES {','.join(vals)}")
+        { id: "rust-examples", title: "Rust (psql CLI)", content: `<h2>Rust</h2>
+<p>examples/rust/ — 4 topic scripts using psql via std::process::Command</p>
+<pre><code>// examples/rust/create_table.rs
+use std::process::Command;
+fn exec(sql: &str) { Command::new("psql").args(["-h","127.0.0.1","-p","5408","-U","admin","-d","huntiandb","-c",sql]).env("PGPASSWORD","admin123").output().unwrap(); }
+exec("CREATE TABLE security_events (id BIGINT PRIMARY KEY, timestamp BIGINT NOT NULL, user_id INT, session_id BIGINT, event_type SMALLINT, zone SMALLINT, status_code SMALLINT, ip_address INT, parent_event_id BIGINT, error_msg VARCHAR(256), payload TEXT)");
+// examples/rust/data_insert_totable.rs: batch insert with format! macros
+// examples/rust/query_data.rs: aggregation queries via psql
+// examples/rust/user_management.rs: SHOW USERS, INSERT INTO users</code></pre>` },
 
-elapsed = time.perf_counter() - t0
-print(f"{ROWS:,} rows in {elapsed:.2f}s → {ROWS/elapsed:,.0f} rows/s")</code></pre>
+        { id: "c-examples", title: "C (libpq)", content: `<h2>C</h2>
+<p>examples/c/ — libpq direct connection, gcc compile</p>
+<pre><code>// examples/c/create_table.c — gcc -o ct create_table.c -lpq
+#include &lt;libpq-fe.h&gt;
+PGconn *c = PQconnectdb("host=127.0.0.1 port=5408 user=admin password=admin123 dbname=huntiandb");
+PQexec(c, "CREATE TABLE security_events (id BIGINT PRIMARY KEY, timestamp BIGINT NOT NULL, user_id INT, session_id BIGINT, event_type SMALLINT, zone SMALLINT, status_code SMALLINT, ip_address INT, parent_event_id BIGINT, error_msg VARCHAR(256), payload TEXT)");
+// examples/c/data_insert_totable.c: snprintf batch insert
+// examples/c/query_data.c: PQexec + PQgetvalue
+// examples/c/user_management.c: SHOW USERS via PQexec</code></pre>` },
 
-<h3>query_data.py</h3>
-<pre><code># 聚合查询
-cur.execute("SELECT COUNT(*) FROM security_events")  # 0.07ms for 100K rows
-cur.execute("SELECT SUM(status_code) FROM security_events")
-cur.execute("SELECT AVG(status_code) FROM security_events")
+        { id: "erlang-examples", title: "Erlang (epgsql)", content: `<h2>Erlang</h2>
+<p>examples/erlang/ — epgsql PostgreSQL client</p>
+<pre><code>%% examples/erlang/create_table.erl
+{ok, C} = epgsql:connect("127.0.0.1", "admin", "admin123", [{port, 5408}, {database, "huntiandb"}]).
+epgsql:squery(C, "CREATE TABLE security_events (id BIGINT PRIMARY KEY, timestamp BIGINT NOT NULL, user_id INT, session_id BIGINT, event_type SMALLINT, zone SMALLINT, status_code SMALLINT, ip_address INT, parent_event_id BIGINT, error_msg VARCHAR(256), payload TEXT)").
+%% examples/erlang/data_insert_totable.erl: batch_insert with io_lib:format
+%% examples/erlang/query_data.erl: equery aggregation
+%% examples/erlang/user_management.erl: INSERT INTO users</code></pre>` },
 
-# GROUP BY
-cur.execute("SELECT event_type, COUNT(*) FROM security_events GROUP BY event_type")
+        { id: "haskell-examples", title: "Haskell (postgresql-simple)", content: `<h2>Haskell</h2>
+<p>examples/haskell/ — postgresql-simple, runghc</p>
+<pre><code>-- examples/haskell/create_table.hs
+import Database.PostgreSQL.Simple
+conn &lt;- connect defaultConnectInfo { connectHost="127.0.0.1", connectPort=5408, connectUser="admin", connectPassword="admin123", connectDatabase="huntiandb" }
+execute_ conn "CREATE TABLE security_events (id BIGINT PRIMARY KEY, timestamp BIGINT NOT NULL, user_id INT, session_id BIGINT, event_type SMALLINT, zone SMALLINT, status_code SMALLINT, ip_address INT, parent_event_id BIGINT, error_msg VARCHAR(256), payload TEXT)"
+-- examples/haskell/data_insert_totable.hs: mapM_ batch insert
+-- examples/haskell/query_data.hs: query_ aggregation
+-- examples/haskell/user_management.hs: execute_ INSERT INTO users</code></pre>` },
 
-# 点查 + 范围扫描
-cur.execute("SELECT * FROM security_events WHERE id = 5000")
-cur.execute("SELECT * FROM security_events WHERE id BETWEEN 100 AND 200")</code></pre>` },
-      ],
-    },
-    {
-      id: "operations",
-      title: "Operations",
-      items: [
-        { id: "docker", title: "Docker Deployment", content: `<h2>Docker Deployment</h2>
+        { id: "cangjie-examples", title: "Cangjie (psql CLI)", content: `<h2>Cangjie</h2>
+<p>examples/cangjie/ — psql via Process.run</p>
+<pre><code>// examples/cangjie/create_table.cj
+import std.io.*
+import std.process.*
+func exec(sql: String): String {
+    return Process.run("psql", ["-h","127.0.0.1","-p","5408","-U","admin","-d","huntiandb","-c",sql], env: ["PGPASSWORD":"admin123"]).stdout
+}
+exec("CREATE TABLE security_events (id BIGINT PRIMARY KEY, timestamp BIGINT NOT NULL, user_id INT, session_id BIGINT, event_type SMALLINT, zone SMALLINT, status_code SMALLINT, ip_address INT, parent_event_id BIGINT, error_msg VARCHAR(256), payload TEXT)")
+// examples/cangjie/data_insert_totable.cj: for loop batch insert
+// examples/cangjie/query_data.cj: aggregation queries
+// examples/cangjie/user_management.cj: SHOW USERS</code></pre>` },
 
-<h3>Pull & Run</h3>
-<pre><code># Docker Hub (International)
-docker pull ctkqiang/huntianandb:v0.1.3.beta
-
-# Alibaba Cloud (China)
-docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.3.beta
-
-# Run
-docker run -d \\
-  -p 5408:5408 -p 3000:3000 -p 5490:5490 \\
-  -v huntian_data:/app/data \\
-  ctkqiang/huntiandb:v0.1.3.beta</code></pre>
-
-<h3>Docker Compose</h3>
-<pre><code># docker-compose.yml
-services:
-  huntiandb:
-    image: ctkqiang/huntiandb:v0.1.3.beta
-    ports:
-      - "5408:5408"
-      - "3000:3000"
-      - "5490:5490"
-    volumes:
-      - huntian_data:/app/data</code></pre>` },
-
-        { id: "crash-testing", title: "Crash Testing", content: `<h2>Crash Safety Testing</h2>
-<pre><code>bash tests/crash_safety.sh</code></pre>
-<p>Starts HunTianDB, runs 10 concurrent psql clients inserting random data, randomly kills the DB process 100 times, and verifies zero data loss after each restart.</p>` },
       ],
     },
   ],

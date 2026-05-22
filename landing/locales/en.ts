@@ -82,7 +82,7 @@ docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanl
 # Run
 docker run -d -p 5408:5408 -p 3000:3000 -p 5490:5490 \\
   -v huntian_data:/app/data \\
-  ctkqiang/huntiandb:v0.1.3.beta`,
+  ctkqiang/huntianandb:v0.1.3.beta`,
   cargoCode: `git clone https://github.com/ctkqiang/HunTianDB
 cd HuntianDB/backend
 cargo run --release`,

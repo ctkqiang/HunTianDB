@@ -19,7 +19,7 @@ docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanl
 docker run -d \
   -p 5408:5408 -p 3000:3000 -p 5490:5490 \
   -v huntian_data:/app/data \
-  ctkqiang/huntiandb:952d3f4e19adb464cd5da2d02edeed1d9a89781e
+  ctkqiang/huntianandb:952d3f4e19adb464cd5da2d02edeed1d9a89781e
 ```
 
 镜像暴露三个端口：
@@ -169,7 +169,7 @@ curl http://localhost:5490/health
 
 ## 示例代码
 
-Python 示例展示混天DB 的核心用法，位于 `examples/` 目录：
+Python 示例展示混天 DB 的核心用法，位于 `examples/` 目录：
 
 ```bash
 cd examples/

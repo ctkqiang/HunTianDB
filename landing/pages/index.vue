@@ -45,7 +45,7 @@
         <h1><span class="gradient-text">{{ t.hero.line1 }}</span><br /><span class="gradient-text-teal">{{ t.hero.line2 }}</span></h1>
         <p class="hero-desc">{{ t.hero.desc }}</p>
         <div class="hero-actions">
-          <code class="hero-code">docker run -p 5408:5408 -p 3000:3000 huntiandb</code>
+          <code class="hero-code">docker run -p 5408:5408 -p 3000:3000 huntianandb</code>
           <button class="btn-primary" @click="copyCmd"><Copy :size="16" />{{ copied ? t.hero.copied : t.hero.copy }}</button>
         </div>
         <div class="hero-tags"><span v-for="tag in t.hero.tags" :key="tag"><Check :size="12" />{{ tag }}</span></div>
@@ -87,16 +87,16 @@
       <div class="section-head"><h2>{{ t.quickstart.heading }}</h2><p>{{ t.quickstart.sub }}</p></div>
 
       <div class="steps">
-        <div class="step"><div class="step-num">1</div><div class="step-content"><h3>{{ t.quickstart.step1.title }}</h3><p>{{ t.quickstart.step1.desc }}</p><div class="code-block"><div class="code-label">{{ t.quickstart.dockerHub }}</div><button class="copy-btn" @click="copyBlock($event)"><Copy :size="12" /> Copy</button><pre><code>docker pull ctkqiang/huntianandb:v0.1.3.beta</code></pre></div><div class="code-block"><div class="code-label">{{ t.quickstart.alibaba }}</div><button class="copy-btn" @click="copyBlock($event)"><Copy :size="12" /> Copy</button><pre><code>docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.3.beta</code></pre></div></div></div>
+        <div class="step reveal"><div class="step-num">1</div><div class="step-content"><h3>{{ t.quickstart.step1.title }}</h3><p>{{ t.quickstart.step1.desc }}</p><pre><code>docker pull ctkqiang/huntianandb:v0.1.3.beta</code></pre><pre><code>docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.3.beta</code></pre></div></div>
 
-        <div class="step"><div class="step-num">2</div><div class="step-content"><h3>{{ t.quickstart.step2.title }}</h3><p>{{ t.quickstart.step2.desc }}</p><div class="code-block"><button class="copy-btn" @click="copyBlock($event)"><Copy :size="12" /> Copy</button><pre><code>docker run -d -p 5408:5408 -p 3000:3000 -p 5490:5490 \
+        <div class="step reveal"><div class="step-num">2</div><div class="step-content"><h3>{{ t.quickstart.step2.title }}</h3><p>{{ t.quickstart.step2.desc }}</p><pre><code>docker run -d -p 5408:5408 -p 3000:3000 -p 5490:5490 \
   -v huntian_data:/app/data \
-  ctkqiang/huntiandb:v0.1.3.beta</code></pre></div></div></div>
+  ctkqiang/huntianandb:v0.1.3.beta</code></pre></div></div>
 
-        <div class="step"><div class="step-num">3</div><div class="step-content"><h3>{{ t.quickstart.step3.title }}</h3><p>{{ t.quickstart.step3.desc }}</p><div class="client-grid"><div v-for="c in t.quickstart.clients" :key="c.label" class="code-block"><div class="code-label">{{ c.label }}</div><button class="copy-btn" @click="copyBlock($event)"><Copy :size="11" /></button><pre><code>{{ c.code }}</code></pre></div></div></div></div>
+        <div class="step reveal"><div class="step-num">3</div><div class="step-content"><h3>{{ t.quickstart.step3.title }}</h3><p>{{ t.quickstart.step3.desc }}</p><div class="client-grid"><pre><code v-for="c in t.quickstart.clients" :key="c.label">{{ c.code }}</code></pre></div></div></div>
 
-        <div class="step step-alt"><div class="step-num">*</div><div class="step-content"><h3>{{ t.quickstart.cargo }}</h3><div class="code-block"><button class="copy-btn" @click="copyBlock($event)"><Copy :size="12" /> Copy</button><pre><code>git clone https://github.com/ctkqiang/HunTianDB
-cd HuntianDB/backend && cargo run --release</code></pre></div></div></div>
+        <div class="step step-alt reveal"><div class="step-num">*</div><div class="step-content"><h3>{{ t.quickstart.cargo }}</h3><pre><code>git clone https://github.com/ctkqiang/HunTianDB
+cd HuntianDB/backend && cargo run --release</code></pre></div></div>
       </div>
     </section>
 
@@ -174,7 +174,7 @@ if (typeof window !== "undefined") {
 }
 
 const copyCmd = async () => {
-  await navigator.clipboard.writeText("docker run -p 5408:5408 -p 3000:3000 huntiandb");
+  await navigator.clipboard.writeText("docker run -p 5408:5408 -p 3000:3000 ");
   copied.value = true; setTimeout(() => (copied.value = false), 2000);
 };
 
@@ -183,15 +183,7 @@ const links = {
   gitcode: "https://gitcode.com/ctkqiang_sr/HunTianDB",
 };
 
-const copyBlock = async (e: Event) => {
-  const btn = e.currentTarget as HTMLElement;
-  const block = btn.closest(".code-block");
-  const code = block?.querySelector("code")?.textContent || "";
-  await navigator.clipboard.writeText(code);
-  const orig = btn.textContent;
-  btn.textContent = "Copied!";
-  setTimeout(() => { btn.textContent = orig; }, 1500);
-};
+// copyBlock removed — now handled by CodeBlock component
 
 // ── Scroll reveal animations ──
 if (typeof window !== "undefined") {
@@ -317,12 +309,19 @@ td { padding: 10px 14px; color: #ccc; border-bottom: 1px solid rgba(255,255,255,
 .code-label { padding: 8px 16px; font-size: 10px; font-weight: 600; color: #8a8a9a; background: #1a1a2e; border-bottom: 1px solid rgba(255,255,255,0.04); font-family: "JetBrains Mono", monospace; text-transform: uppercase; letter-spacing: 0.5px; }
 .code-block pre { padding: 16px 20px; margin: 0; overflow-x: auto; }
 .code-block code { font-family: "JetBrains Mono", monospace; font-size: 12.5px; color: #ccc; line-height: 1.7; white-space: pre; }
-.client-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; }
-.client-grid .code-block { margin-bottom: 0; }
-.client-grid .code-block pre { max-height: 180px; overflow-y: auto; }
-.client-grid .code-label { font-size: 9px; padding: 6px 14px; }
-.code-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-@media (max-width: 600px) { .code-row, .client-grid { grid-template-columns: 1fr; } }
+.code-block { background: #12121f; border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 8px; position: relative; }
+.code-block .copy-btn { position: absolute; top: 6px; right: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; color: #8a8a9a; cursor: pointer; padding: 4px 7px; font-size: 10px; display: flex; align-items: center; gap: 3px; transition: all 0.2s; z-index: 2; font-family: "Inter", sans-serif; line-height: 1; }
+.code-block .copy-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
+.code-block pre { padding: 16px 20px; margin: 0; overflow-x: auto; }
+.code-block code { font-family: "JetBrains Mono", monospace; font-size: 13px; color: #ccc; line-height: 1.7; white-space: pre; display: block; }
+pre { background: #12121f; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 16px 20px; overflow-x: auto; margin: 8px 0; }
+pre code { font-family: "JetBrains Mono", monospace; font-size: 13px; color: #ccc; line-height: 1.7; white-space: pre; display: block; }
+.client-grid pre { max-height: 140px; overflow-y: auto; margin: 0; }
+
+.client-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px; }
+.client-grid .cb-wrap { margin: 0; }
+.client-grid .cb-wrap pre { max-height: 140px; overflow-y: auto; }
+@media (max-width: 600px) { .client-grid { grid-template-columns: 1fr; } }
 
 /* ── ARCHITECTURE ── */
 .arch { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 2px; }

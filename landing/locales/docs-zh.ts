@@ -35,7 +35,7 @@ REST API (axum)  +  PG Wire 协议 (tokio)
 <pre><code>docker pull ctkqiang/huntianandb:v0.1.3.beta
 docker run -d -p 5408:5408 -p 3000:3000 -p 5490:5490 \\
   -v huntian_data:/app/data \\
-  ctkqiang/huntiandb:v0.1.3.beta</code></pre>
+  ctkqiang/huntianandb:v0.1.3.beta</code></pre>
 
 <h3>从源码编译</h3>
 <pre><code>git clone https://github.com/ctkqiang/HunTianDB
@@ -313,28 +313,94 @@ GET :5490/ready     → 200 若 WAL 恢复完成</code></pre>
       id: "examples",
       title: "代码示例",
       items: [
-        { id: "python-examples", title: "Python 示例", content: `<h2>Python 使用示例</h2>
-<p>所有示例代码位于仓库 <code>examples/</code> 目录。</p>
+        { id: "python-examples", title: "Python (psycopg2)", content: `<h2>Python 示例</h2>
+<pre><code># examples/python/create_table.py
+import psycopg2
+conn = psycopg2.connect(host="127.0.0.1", port=5408, user="admin", password="admin123", dbname="huntiandb")
+conn.autocommit = True; cur = conn.cursor()
+cur.execute("CREATE TABLE security_events (id BIGINT PRIMARY KEY, timestamp BIGINT NOT NULL, user_id INT, session_id BIGINT, event_type SMALLINT, zone SMALLINT, status_code SMALLINT, ip_address INT, parent_event_id BIGINT, error_msg VARCHAR(256), payload TEXT)")
+ROWS, BATCH = 10000, 500
+for b in range(0, ROWS, BATCH):
+    vals = []
+    for i in range(b, min(b+BATCH, ROWS)):
+        vals.append("(" + str(i) + "," + str(1779200000000+i*1000) + "," + str(i%500) + "," + str(i*13) + "," + str(i%8+1) + "," + str(i%5+1) + ",200," + str(0x0A000001+(i%255)) + "," + str(i-1 if i>0 else 0) + ",'OK','SEC_AUDIT_')")
+    cur.execute("INSERT INTO security_events VALUES " + ",".join(vals))
+cur.execute("SELECT COUNT(*), SUM(status_code), AVG(status_code) FROM security_events")
+cur.execute("SELECT event_type, COUNT(*) FROM security_events GROUP BY event_type")
+cur.execute("SHOW USERS")
+cur.execute("INSERT INTO users (username, role) VALUES ('analyst', 'reader')")</code></pre>` },
 
-<table><tr><th>语言</th><th>目录</th><th>驱动</th></tr>
-<tr><td>Python</td><td><code>examples/python/</code></td><td>psycopg2</td></tr>
-<tr><td>TypeScript</td><td><code>examples/typescript/</code></td><td>pg</td></tr>
-<tr><td>Go</td><td><code>examples/go/</code></td><td>lib/pq</td></tr>
-<tr><td>Rust</td><td><code>examples/rust/</code></td><td>psql CLI</td></tr>
-<tr><td>C</td><td><code>examples/c/</code></td><td>libpq</td></tr>
-<tr><td>Erlang</td><td><code>examples/erlang/</code></td><td>epgsql</td></tr>
-<tr><td>Haskell</td><td><code>examples/haskell/</code></td><td>postgresql-simple</td></tr>
-<tr><td>仓颉</td><td><code>examples/cangjie/</code></td><td>psql CLI</td></tr></table>
-<p>每种语言包含 4 个主题脚本：<code>create_table</code>、<code>data_insert_totable</code>、<code>query_data</code>、<code>user_management</code>。</p>
+        { id: "go-examples", title: "Go (lib/pq)", content: `<h2>Go 示例</h2>
+<pre><code>// examples/go/create_table.go
+db, _ := sql.Open("postgres", "host=127.0.0.1 port=5408 user=admin password=admin123 dbname=huntiandb sslmode=disable")
+db.Exec("CREATE TABLE security_events (id BIGINT PRIMARY KEY, timestamp BIGINT NOT NULL, user_id INT, session_id BIGINT, event_type SMALLINT, zone SMALLINT, status_code SMALLINT, ip_address INT, parent_event_id BIGINT, error_msg VARCHAR(256), payload TEXT)")
+// examples/go/data_insert_totable.go: batch insert with fmt.Sprintf
+// examples/go/query_data.go: GROUP BY aggregation
+// examples/go/user_management.go: INSERT INTO users</code></pre>` },
 
-<pre><code># 推荐运行顺序
-cd examples/
-pip install psycopg2-binary
-python3 create_table.py
-python3 data_insert_totable.py 10000 500
-python3 query_data.py
-python3 user_management.py</code></pre>` },
-      ],
-    },
+        { id: "ts-examples", title: "TypeScript (pg)", content: `<h2>TypeScript 示例</h2>
+<pre><code>// examples/typescript/create_table.ts
+import { Client } from "pg";
+const c = new Client({ host: "127.0.0.1", port: 5408, user: "admin", password: "admin123", database: "huntiandb" });
+await c.connect();
+await c.query("CREATE TABLE security_events (id BIGINT PRIMARY KEY, timestamp BIGINT NOT NULL, user_id INT, session_id BIGINT, event_type SMALLINT, zone SMALLINT, status_code SMALLINT, ip_address INT, parent_event_id BIGINT, error_msg VARCHAR(256), payload TEXT)");
+// examples/typescript/data_insert_totable.ts: batch insert + throughput
+// examples/typescript/query_data.ts: aggregation queries
+// examples/typescript/user_management.ts: users + roles</code></pre>` },
+
+        { id: "rust-examples", title: "Rust (psql CLI)", content: `<h2>Rust</h2>
+<p>examples/rust/ — 4 个主题脚本，通过 psql 连接（端口 5408）</p>
+<pre><code>// examples/rust/create_table.rs
+use std::process::Command;
+fn exec(sql: &str) { Command::new("psql").args(["-h","127.0.0.1","-p","5408","-U","admin","-d","huntiandb","-c",sql]).env("PGPASSWORD","admin123").output().unwrap(); }
+exec("CREATE TABLE security_events (id BIGINT PRIMARY KEY, timestamp BIGINT NOT NULL, user_id INT, session_id BIGINT, event_type SMALLINT, zone SMALLINT, status_code SMALLINT, ip_address INT, parent_event_id BIGINT, error_msg VARCHAR(256), payload TEXT)");
+// examples/rust/data_insert_totable.rs: format! batch insert
+// examples/rust/query_data.rs: aggregation queries
+// examples/rust/user_management.rs: SHOW USERS</code></pre>` },
+
+        { id: "c-examples", title: "C (libpq)", content: `<h2>C</h2>
+<p>examples/c/ — libpq 直接连接，gcc 编译</p>
+<pre><code>// examples/c/create_table.c
+#include &lt;libpq-fe.h&gt;
+PGconn *c = PQconnectdb("host=127.0.0.1 port=5408 user=admin password=admin123 dbname=huntiandb");
+PQexec(c, "CREATE TABLE security_events (id BIGINT PRIMARY KEY, timestamp BIGINT NOT NULL, user_id INT, session_id BIGINT, event_type SMALLINT, zone SMALLINT, status_code SMALLINT, ip_address INT, parent_event_id BIGINT, error_msg VARCHAR(256), payload TEXT)");
+// examples/c/data_insert_totable.c: snprintf batch insert
+// examples/c/query_data.c: PQexec + PQgetvalue
+// examples/c/user_management.c: SHOW USERS</code></pre>` },
+
+        { id: "erlang-examples", title: "Erlang (epgsql)", content: `<h2>Erlang</h2>
+<p>examples/erlang/ — epgsql PostgreSQL 客户端</p>
+<pre><code>%% examples/erlang/create_table.erl
+{ok, C} = epgsql:connect("127.0.0.1", "admin", "admin123", [{port, 5408}, {database, "huntiandb"}]).
+epgsql:squery(C, "CREATE TABLE security_events (id BIGINT PRIMARY KEY, timestamp BIGINT NOT NULL, user_id INT, session_id BIGINT, event_type SMALLINT, zone SMALLINT, status_code SMALLINT, ip_address INT, parent_event_id BIGINT, error_msg VARCHAR(256), payload TEXT)").
+%% examples/erlang/data_insert_totable.erl: batch_insert + io_lib:format
+%% examples/erlang/query_data.erl: equery aggregation
+%% examples/erlang/user_management.erl: INSERT INTO users</code></pre>` },
+
+        { id: "haskell-examples", title: "Haskell (postgresql-simple)", content: `<h2>Haskell</h2>
+<p>examples/haskell/ — postgresql-simple，runghc 运行</p>
+<pre><code>-- examples/haskell/create_table.hs
+import Database.PostgreSQL.Simple
+conn <- connect defaultConnectInfo { connectHost="127.0.0.1", connectPort=5408, connectUser="admin", connectPassword="admin123", connectDatabase="huntiandb" }
+execute_ conn "CREATE TABLE security_events (id BIGINT PRIMARY KEY, timestamp BIGINT NOT NULL, user_id INT, session_id BIGINT, event_type SMALLINT, zone SMALLINT, status_code SMALLINT, ip_address INT, parent_event_id BIGINT, error_msg VARCHAR(256), payload TEXT)"
+-- examples/haskell/data_insert_totable.hs: mapM_ batch insert
+-- examples/haskell/query_data.hs: query_ aggregation
+-- examples/haskell/user_management.hs: execute_ INSERT INTO users</code></pre>` },
+
+        { id: "cangjie-examples", title: "仓颉 (psql CLI)", content: `<h2>仓颉</h2>
+<p>examples/cangjie/ — 通过 Process.run 调用 psql</p>
+<pre><code>// examples/cangjie/create_table.cj
+import std.io.*
+import std.process.*
+func exec(sql: String): String {
+    return Process.run("psql", ["-h","127.0.0.1","-p","5408","-U","admin","-d","huntiandb","-c",sql], env: ["PGPASSWORD":"admin123"]).stdout
+}
+exec("CREATE TABLE security_events (id BIGINT PRIMARY KEY, timestamp BIGINT NOT NULL, user_id INT, session_id BIGINT, event_type SMALLINT, zone SMALLINT, status_code SMALLINT, ip_address INT, parent_event_id BIGINT, error_msg VARCHAR(256), payload TEXT)")
+// examples/cangjie/data_insert_totable.cj: for loop batch insert
+// examples/cangjie/query_data.cj: aggregation queries
+// examples/cangjie/user_management.cj: SHOW USERS</code></pre>` },
+
+  ],
+  },
   ],
 };

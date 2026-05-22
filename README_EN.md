@@ -8,7 +8,7 @@ Timeseries security database with PostgreSQL Wire Protocol v3.0 compatibility.
 
 ```bash
 # International (Docker Hub)
-docker pull ctkqiang/huntiandb:952d3f4e19adb464cd5da2d02edeed1d9a89781e
+docker pull ctkqiang/huntianandb:952d3f4e19adb464cd5da2d02edeed1d9a89781e
 
 # China (Alibaba Cloud Container Registry)
 docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.3.beta
