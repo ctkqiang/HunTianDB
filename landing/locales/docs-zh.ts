@@ -32,10 +32,10 @@ REST API (axum)  +  PG Wire 协议 (tokio)
         { id: "quickstart", title: "快速启动", content: `<h2>快速启动</h2>
 
 <h3>Docker（推荐）</h3>
-<pre><code>docker pull ctkqiang/huntianandb:v0.1.3.beta
+<pre><code>docker pull ctkqiang/huntiandb:v0.1.4.beta
 docker run -d -p 5408:5408 -p 3000:3000 -p 5490:5490 \\
   -v huntian_data:/app/data \\
-  ctkqiang/huntianandb:v0.1.3.beta</code></pre>
+  ctkqiang/huntiandb:v0.1.4.beta</code></pre>
 
 <h3>从源码编译</h3>
 <pre><code>git clone https://github.com/ctkqiang/HunTianDB

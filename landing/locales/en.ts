@@ -2,7 +2,7 @@ export default {
   nav: { features: "Features", performance: "Performance", quickstart: "Quick Start", docs: "Docs", github: "GitHub", gitcode: "GitCode", getStarted: "Get Started" },
   lang: { en: "English", zh: "中文" },
   hero: {
-    badge: "Production Ready · v0.1.3",
+    badge: "Production Ready · v0.1.4",
     line1: "The Timeseries",
     line2: "Security Database",
     desc: "PostgreSQL wire protocol compatible. Built in Rust for blistering speed. Designed for security audit trails, financial event streams, and real-time observability.",
@@ -74,15 +74,15 @@ export default {
     ],
   },
   dockerCode: `# International (Docker Hub)
-docker pull ctkqiang/huntianandb:v0.1.3.beta
+docker pull ctkqiang/huntiandb:v0.1.4.beta
 
 # China (Alibaba Cloud)
-docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.3.beta
+docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.4.beta
 
 # Run
 docker run -d -p 5408:5408 -p 3000:3000 -p 5490:5490 \\
   -v huntian_data:/app/data \\
-  ctkqiang/huntianandb:v0.1.3.beta`,
+  ctkqiang/huntiandb:v0.1.4.beta`,
   cargoCode: `git clone https://github.com/ctkqiang/HunTianDB
 cd HuntianDB/backend
 cargo run --release`,

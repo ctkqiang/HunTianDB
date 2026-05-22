@@ -9,7 +9,7 @@
           <img src="/logo.png" alt="HunTianDB" class="logo-img" />
           <div class="brand-text-group">
             <span class="brand-text">HunTian<span class="accent">DB</span></span>
-            <span class="brand-version">v0.1.3</span>
+            <span class="brand-version">v0.1.4</span>
           </div>
         </a>
 
@@ -45,7 +45,7 @@
         <h1><span class="gradient-text">{{ t.hero.line1 }}</span><br /><span class="gradient-text-teal">{{ t.hero.line2 }}</span></h1>
         <p class="hero-desc">{{ t.hero.desc }}</p>
         <div class="hero-actions">
-          <code class="hero-code">docker run -p 5408:5408 -p 3000:3000 huntianandb</code>
+          <code class="hero-code">docker run -p 5408:5408 -p 3000:3000 huntiandb</code>
           <button class="btn-primary" @click="copyCmd"><Copy :size="16" />{{ copied ? t.hero.copied : t.hero.copy }}</button>
         </div>
         <div class="hero-tags"><span v-for="tag in t.hero.tags" :key="tag"><Check :size="12" />{{ tag }}</span></div>
@@ -87,11 +87,11 @@
       <div class="section-head"><h2>{{ t.quickstart.heading }}</h2><p>{{ t.quickstart.sub }}</p></div>
 
       <div class="steps">
-        <div class="step reveal"><div class="step-num">1</div><div class="step-content"><h3>{{ t.quickstart.step1.title }}</h3><p>{{ t.quickstart.step1.desc }}</p><pre><code>docker pull ctkqiang/huntianandb:v0.1.3.beta</code></pre><pre><code>docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.3.beta</code></pre></div></div>
+        <div class="step reveal"><div class="step-num">1</div><div class="step-content"><h3>{{ t.quickstart.step1.title }}</h3><p>{{ t.quickstart.step1.desc }}</p><pre><code>docker pull ctkqiang/huntiandb:v0.1.4.beta</code></pre><pre><code>docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.4.beta</code></pre></div></div>
 
         <div class="step reveal"><div class="step-num">2</div><div class="step-content"><h3>{{ t.quickstart.step2.title }}</h3><p>{{ t.quickstart.step2.desc }}</p><pre><code>docker run -d -p 5408:5408 -p 3000:3000 -p 5490:5490 \
   -v huntian_data:/app/data \
-  ctkqiang/huntianandb:v0.1.3.beta</code></pre></div></div>
+  ctkqiang/huntiandb:v0.1.4.beta</code></pre></div></div>
 
         <div class="step reveal"><div class="step-num">3</div><div class="step-content"><h3>{{ t.quickstart.step3.title }}</h3><p>{{ t.quickstart.step3.desc }}</p><div class="client-grid"><pre><code v-for="c in t.quickstart.clients" :key="c.label">{{ c.code }}</code></pre></div></div></div>
 

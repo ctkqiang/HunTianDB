@@ -2,7 +2,7 @@ export default {
   nav: { features: "特性", performance: "性能", quickstart: "快速开始", docs: "文档", github: "GitHub", gitcode: "GitCode", getStarted: "立即开始" },
   lang: { en: "English", zh: "中文" },
   hero: {
-    badge: "生产就绪 · v0.1.3",
+    badge: "生产就绪 · v0.1.4",
     line1: "为安全而生的",
     line2: "时序数据库",
     desc: "兼容 PostgreSQL Wire Protocol。Rust 打造，极致速度。专为安全审计追踪、金融事件流和实时可观测性设计。",
@@ -74,15 +74,15 @@ export default {
     ],
   },
   dockerCode: `# 国际 (Docker Hub)
-docker pull ctkqiang/huntianandb:v0.1.3.beta
+docker pull ctkqiang/huntiandb:v0.1.4.beta
 
 # 中国 (阿里云容器镜像)
-docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.3.beta
+docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.4.beta
 
 # 运行
 docker run -d -p 5408:5408 -p 3000:3000 -p 5490:5490 \\
   -v huntian_data:/app/data \\
-  ctkqiang/huntianandb:v0.1.3.beta`,
+  ctkqiang/huntiandb:v0.1.4.beta`,
   cargoCode: `git clone https://github.com/ctkqiang/HunTianDB
 cd HuntianDB/backend
 cargo run --release`,
