@@ -120,6 +120,21 @@ Opens on `http://localhost:3000` with:
 - **Event Viewer** -- paginated security event table with filters
 - **Settings** -- system info and configuration
 
+## Examples
+
+Python usage examples in `examples/`:
+
+```bash
+cd examples/
+pip install psycopg2-binary
+python3 create_table.py            # Create tables
+python3 data_insert_totable.py     # Batch insert
+python3 query_data.py              # Queries & aggregation
+python3 user_management.py         # User management
+```
+
+See [examples/README.md](examples/README.md).
+
 ## Documentation
 
 | Document                                                | Language |

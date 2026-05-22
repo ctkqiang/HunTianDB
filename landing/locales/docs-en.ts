@@ -344,6 +344,68 @@ Connection conn = DriverManager.getConnection(url, "admin", "admin123");</code><
       ],
     },
     {
+      id: "examples",
+      title: "Examples",
+      items: [
+        { id: "python-examples", title: "Python Examples", content: `<h2>Python Usage Examples</h2>
+<p>All examples are in the <code>examples/</code> directory of the repository. Each script is a standalone working example demonstrating a specific feature.</p>
+
+<h3>Example Files</h3>
+<table><tr><th>File</th><th>Description</th><th>Command</th></tr>
+<tr><td><code>create_table.py</code></td><td>Create a security audit events table with 11 columns</td><td><code>python3 create_table.py</code></td></tr>
+<tr><td><code>data_insert_totable.py</code></td><td>Batch insert configurable rows with throughput measurement</td><td><code>python3 data_insert_totable.py 10000 500</code></td></tr>
+<tr><td><code>query_data.py</code></td><td>Point lookup, range scan, SUM/AVG, GROUP BY, filtering</td><td><code>python3 query_data.py</code></td></tr>
+<tr><td><code>user_management.py</code></td><td>Create users with roles, test read-only enforcement</td><td><code>python3 user_management.py</code></td></tr></table>
+
+<h3>create_table.py</h3>
+<pre><code>import psycopg2
+conn = psycopg2.connect(host="127.0.0.1", port=5408, user="admin", password="admin123", dbname="huntiandb")
+conn.autocommit = True
+cur = conn.cursor()
+
+cur.execute("""
+    CREATE TABLE security_events (
+        id BIGINT PRIMARY KEY, timestamp BIGINT NOT NULL,
+        user_id INT, session_id BIGINT, event_type SMALLINT,
+        zone SMALLINT, status_code SMALLINT, ip_address INT,
+        parent_event_id BIGINT, error_msg VARCHAR(256), payload TEXT
+    )
+""")
+cur.execute("SHOW TABLES")
+cur.execute("DESCRIBE security_events")</code></pre>
+
+<h3>data_insert_totable.py</h3>
+<pre><code>import time
+ROWS, BATCH = 10000, 500
+PAYLOAD = "SEC_AUDIT_" * 60  # 360-byte security audit payload
+
+t0 = time.perf_counter()
+for b in range(0, ROWS, BATCH):
+    vals = []
+    for i in range(b, min(b + BATCH, ROWS)):
+        vals.append(f"({i},{1779200000000+i*1000},{i%500},{i*13},"
+                    f"{i%8+1},{i%5+1},{200 if i%10 else 500},"
+                    f"{0x0A000001+(i%255)},{i-1 if i>0 else 0},'OK','{PAYLOAD}')")
+    cur.execute(f"INSERT INTO security_events VALUES {','.join(vals)}")
+
+elapsed = time.perf_counter() - t0
+print(f"{ROWS:,} rows in {elapsed:.2f}s → {ROWS/elapsed:,.0f} rows/s")</code></pre>
+
+<h3>query_data.py</h3>
+<pre><code># 聚合查询
+cur.execute("SELECT COUNT(*) FROM security_events")  # 0.07ms for 100K rows
+cur.execute("SELECT SUM(status_code) FROM security_events")
+cur.execute("SELECT AVG(status_code) FROM security_events")
+
+# GROUP BY
+cur.execute("SELECT event_type, COUNT(*) FROM security_events GROUP BY event_type")
+
+# 点查 + 范围扫描
+cur.execute("SELECT * FROM security_events WHERE id = 5000")
+cur.execute("SELECT * FROM security_events WHERE id BETWEEN 100 AND 200")</code></pre>` },
+      ],
+    },
+    {
       id: "operations",
       title: "Operations",
       items: [

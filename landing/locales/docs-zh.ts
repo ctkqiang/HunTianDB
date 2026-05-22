@@ -309,5 +309,27 @@ GET :5490/ready     → 200 若 WAL 恢复完成</code></pre>
 </table>` },
       ],
     },
+    {
+      id: "examples",
+      title: "代码示例",
+      items: [
+        { id: "python-examples", title: "Python 示例", content: `<h2>Python 使用示例</h2>
+<p>所有示例代码位于仓库 <code>examples/</code> 目录。</p>
+
+<table><tr><th>文件</th><th>说明</th><th>运行命令</th></tr>
+<tr><td><code>create_table.py</code></td><td>创建安全审计事件表（11 列）</td><td><code>python3 create_table.py</code></td></tr>
+<tr><td><code>data_insert_totable.py</code></td><td>批量插入并测量吞吐量</td><td><code>python3 data_insert_totable.py 10000 500</code></td></tr>
+<tr><td><code>query_data.py</code></td><td>点查询、聚合、GROUP BY</td><td><code>python3 query_data.py</code></td></tr>
+<tr><td><code>user_management.py</code></td><td>用户管理与权限验证</td><td><code>python3 user_management.py</code></td></tr></table>
+
+<pre><code># 推荐运行顺序
+cd examples/
+pip install psycopg2-binary
+python3 create_table.py
+python3 data_insert_totable.py 10000 500
+python3 query_data.py
+python3 user_management.py</code></pre>` },
+      ],
+    },
   ],
 };

@@ -167,6 +167,21 @@ curl http://localhost:5490/health
 | `METRICS_PORT`       | 5490     | 指标 HTTP 端口（0=禁用） |
 | `PROMETHEUS_PATH`    | /metrics | 指标导出路径             |
 
+## 示例代码
+
+Python 示例展示混天DB 的核心用法，位于 `examples/` 目录：
+
+```bash
+cd examples/
+pip install psycopg2-binary
+python3 create_table.py            # 创建数据表
+python3 data_insert_totable.py     # 批量插入数据
+python3 query_data.py              # 查询与聚合
+python3 user_management.py         # 用户管理
+```
+
+详见 [examples/README.md](examples/README.md)。
+
 ## 文档
 
 | 文档                                          | 语言 |
