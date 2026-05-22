@@ -1,7 +1,10 @@
 [package]
 name = "huntiandb"
-version = "0.1.1"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
 description = "混天 — 时序安全数据库，面向安全审计与金融数据的不可变列式存储引擎"
 
 [dependencies]
