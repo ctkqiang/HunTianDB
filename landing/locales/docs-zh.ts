@@ -32,7 +32,7 @@ REST API (axum)  +  PG Wire 协议 (tokio)
         { id: "quickstart", title: "快速启动", content: `<h2>快速启动</h2>
 
 <h3>Docker（推荐）</h3>
-<pre><code>docker pull ctkqiang/huntiandb:v0.1.3.beta
+<pre><code>docker pull ctkqiang/huntianandb:v0.1.3.beta
 docker run -d -p 5408:5408 -p 3000:3000 -p 5490:5490 \\
   -v huntian_data:/app/data \\
   ctkqiang/huntiandb:v0.1.3.beta</code></pre>
@@ -316,11 +316,16 @@ GET :5490/ready     → 200 若 WAL 恢复完成</code></pre>
         { id: "python-examples", title: "Python 示例", content: `<h2>Python 使用示例</h2>
 <p>所有示例代码位于仓库 <code>examples/</code> 目录。</p>
 
-<table><tr><th>文件</th><th>说明</th><th>运行命令</th></tr>
-<tr><td><code>create_table.py</code></td><td>创建安全审计事件表（11 列）</td><td><code>python3 create_table.py</code></td></tr>
-<tr><td><code>data_insert_totable.py</code></td><td>批量插入并测量吞吐量</td><td><code>python3 data_insert_totable.py 10000 500</code></td></tr>
-<tr><td><code>query_data.py</code></td><td>点查询、聚合、GROUP BY</td><td><code>python3 query_data.py</code></td></tr>
-<tr><td><code>user_management.py</code></td><td>用户管理与权限验证</td><td><code>python3 user_management.py</code></td></tr></table>
+<table><tr><th>语言</th><th>目录</th><th>驱动</th></tr>
+<tr><td>Python</td><td><code>examples/python/</code></td><td>psycopg2</td></tr>
+<tr><td>TypeScript</td><td><code>examples/typescript/</code></td><td>pg</td></tr>
+<tr><td>Go</td><td><code>examples/go/</code></td><td>lib/pq</td></tr>
+<tr><td>Rust</td><td><code>examples/rust/</code></td><td>psql CLI</td></tr>
+<tr><td>C</td><td><code>examples/c/</code></td><td>libpq</td></tr>
+<tr><td>Erlang</td><td><code>examples/erlang/</code></td><td>epgsql</td></tr>
+<tr><td>Haskell</td><td><code>examples/haskell/</code></td><td>postgresql-simple</td></tr>
+<tr><td>仓颉</td><td><code>examples/cangjie/</code></td><td>psql CLI</td></tr></table>
+<p>每种语言包含 4 个主题脚本：<code>create_table</code>、<code>data_insert_totable</code>、<code>query_data</code>、<code>user_management</code>。</p>
 
 <pre><code># 推荐运行顺序
 cd examples/

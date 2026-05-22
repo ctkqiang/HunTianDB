@@ -1,28 +1,40 @@
 # 混天DB 示例代码
 
-Python 示例演示混天DB 的核心功能。所有示例使用标准 PostgreSQL 客户端 `psycopg2`。
+每种语言提供 4 个主题示例，演示混天DB 的核心功能。
 
 ## 前置条件
 
 ```bash
-pip install psycopg2-binary
-
-# 启动混天DB
-cd ../backend && cargo run --release
+pip install psycopg2-binary  # Python
+cd ../backend && cargo run --release  # 启动混天DB
 ```
 
-## 示例列表
+## 语言目录
 
-| 文件 | 说明 | 用法 |
-|------|------|------|
-| `create_table.py` | 创建安全审计事件表 | `python3 create_table.py` |
-| `data_insert_totable.py` | 批量插入数据 | `python3 data_insert_totable.py [行数] [批次]` |
-| `query_data.py` | 查询：点查、聚合、GROUP BY | `python3 query_data.py` |
-| `user_management.py` | 用户管理：创建/查看/删除 | `python3 user_management.py` |
+| 语言 | 目录 | 驱动/库 |
+|------|------|--------|
+| Python | `python/` | psycopg2 |
+| TypeScript | `typescript/` | pg |
+| Go | `go/` | lib/pq |
+| Rust | `rust/` | psql CLI |
+| C | `c/` | libpq |
+| Erlang | `erlang/` | epgsql |
+| Haskell | `haskell/` | postgresql-simple |
+| 仓颉 | `cangjie/` | psql CLI |
 
-## 运行顺序（推荐）
+## 示例文件（每种语言）
+
+| 文件 | 说明 |
+|------|------|
+| `create_table.*` | 创建安全审计事件表 + SHOW TABLES |
+| `data_insert_totable.*` | 批量插入数据，可配置行数和批大小 |
+| `query_data.*` | 查询：COUNT、SUM、AVG、GROUP BY |
+| `user_management.*` | 用户管理：SHOW USERS、INSERT/CREATE USER |
+
+## Python 快速开始
 
 ```bash
+cd python/
 python3 create_table.py
 python3 data_insert_totable.py 10000 500
 python3 query_data.py

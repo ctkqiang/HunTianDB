@@ -74,7 +74,7 @@ export default {
     ],
   },
   dockerCode: `# International (Docker Hub)
-docker pull ctkqiang/huntiandb:v0.1.3.beta
+docker pull ctkqiang/huntianandb:v0.1.3.beta
 
 # China (Alibaba Cloud)
 docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.3.beta

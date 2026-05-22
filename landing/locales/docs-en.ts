@@ -32,7 +32,7 @@ REST API (axum)  +  PG Wire Protocol (tokio)
         { id: "quickstart", title: "Quick Start", content: `<h2>Quick Start</h2>
 
 <h3>Docker (Recommended)</h3>
-<pre><code>docker pull ctkqiang/huntiandb:v0.1.3.beta
+<pre><code>docker pull ctkqiang/huntianandb:v0.1.3.beta
 docker run -d -p 5408:5408 -p 3000:3000 -p 5490:5490 \\
   -v huntian_data:/app/data \\
   ctkqiang/huntiandb:v0.1.3.beta</code></pre>
@@ -350,12 +350,17 @@ Connection conn = DriverManager.getConnection(url, "admin", "admin123");</code><
         { id: "python-examples", title: "Python Examples", content: `<h2>Python Usage Examples</h2>
 <p>All examples are in the <code>examples/</code> directory of the repository. Each script is a standalone working example demonstrating a specific feature.</p>
 
-<h3>Example Files</h3>
-<table><tr><th>File</th><th>Description</th><th>Command</th></tr>
-<tr><td><code>create_table.py</code></td><td>Create a security audit events table with 11 columns</td><td><code>python3 create_table.py</code></td></tr>
-<tr><td><code>data_insert_totable.py</code></td><td>Batch insert configurable rows with throughput measurement</td><td><code>python3 data_insert_totable.py 10000 500</code></td></tr>
-<tr><td><code>query_data.py</code></td><td>Point lookup, range scan, SUM/AVG, GROUP BY, filtering</td><td><code>python3 query_data.py</code></td></tr>
-<tr><td><code>user_management.py</code></td><td>Create users with roles, test read-only enforcement</td><td><code>python3 user_management.py</code></td></tr></table>
+<h3>Languages & Drivers</h3>
+<table><tr><th>Language</th><th>Directory</th><th>Driver</th></tr>
+<tr><td>Python</td><td><code>examples/python/</code></td><td>psycopg2</td></tr>
+<tr><td>TypeScript</td><td><code>examples/typescript/</code></td><td>pg</td></tr>
+<tr><td>Go</td><td><code>examples/go/</code></td><td>lib/pq</td></tr>
+<tr><td>Rust</td><td><code>examples/rust/</code></td><td>psql CLI</td></tr>
+<tr><td>C</td><td><code>examples/c/</code></td><td>libpq</td></tr>
+<tr><td>Erlang</td><td><code>examples/erlang/</code></td><td>epgsql</td></tr>
+<tr><td>Haskell</td><td><code>examples/haskell/</code></td><td>postgresql-simple</td></tr>
+<tr><td>Cangjie</td><td><code>examples/cangjie/</code></td><td>psql CLI</td></tr></table>
+<p>Each language has 4 topic scripts: <code>create_table</code>, <code>data_insert_totable</code>, <code>query_data</code>, <code>user_management</code>.</p>
 
 <h3>create_table.py</h3>
 <pre><code>import psycopg2
@@ -413,7 +418,7 @@ cur.execute("SELECT * FROM security_events WHERE id BETWEEN 100 AND 200")</code>
 
 <h3>Pull & Run</h3>
 <pre><code># Docker Hub (International)
-docker pull ctkqiang/huntiandb:v0.1.3.beta
+docker pull ctkqiang/huntianandb:v0.1.3.beta
 
 # Alibaba Cloud (China)
 docker pull crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb:v0.1.3.beta
