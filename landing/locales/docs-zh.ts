@@ -1,4 +1,4 @@
-import { VERSION, BETA_TAG } from "../composables/useVersion";
+import { VERSION } from "../composables/useVersion";
 export default {
   title: "文档",
   search: "搜索文档...",
@@ -33,10 +33,10 @@ REST API (axum)  +  PG Wire 协议 (tokio)
         { id: "quickstart", title: "快速启动", content: `<h2>快速启动</h2>
 
 <h3>Docker（推荐）</h3>
-<pre><code>docker pull ctkqiang/huntiandb:${BETA_TAG}
+<pre><code>docker pull ctkqiang/huntiandb:${VERSION}
 docker run -d -p 5408:5408 -p 3000:3000 -p 5490:5490 \\
   -v huntian_data:/app/data \\
-  ctkqiang/huntiandb:${BETA_TAG}</code></pre>
+  ctkqiang/huntiandb:${VERSION}</code></pre>
 
 <h3>从源码编译</h3>
 <pre><code>git clone https://github.com/ctkqiang/HunTianDB

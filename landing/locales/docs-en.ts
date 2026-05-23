@@ -1,4 +1,4 @@
-import { VERSION, BETA_TAG } from "../composables/useVersion";
+import { VERSION} from "../composables/useVersion";
 export default {
   title: "Documentation",
   search: "Search docs...",
@@ -33,10 +33,10 @@ REST API (axum)  +  PG Wire Protocol (tokio)
         { id: "quickstart", title: "Quick Start", content: `<h2>Quick Start</h2>
 
 <h3>Docker (Recommended)</h3>
-<pre><code>docker pull ctkqiang/huntiandb:${BETA_TAG}
+<pre><code>docker pull ctkqiang/huntiandb:${VERSION }
 docker run -d -p 5408:5408 -p 3000:3000 -p 5490:5490 \\
   -v huntian_data:/app/data \\
-  ctkqiang/huntiandb:${BETA_TAG}</code></pre>
+  ctkqiang/huntiandb:${VERSION }</code></pre>
 
 <h3>Build from Source</h3>
 <pre><code>git clone https://github.com/ctkqiang/HunTianDB
