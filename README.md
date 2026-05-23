@@ -194,4 +194,23 @@ python3 user_management.py         # 用户管理
 
 ## 许可证
 
-MIT
+本项目基于 **MIT 许可证** 开源发布，详见 [LICENSE](LICENSE) 文件。
+
+**主要条款：**
+
+- 可自由使用、复制、修改、合并、出版发行、再授权及销售本软件的副本
+- 允许商业用途，无需额外授权
+- 软件按"原样"提供，不提供任何形式的明示或暗示担保
+- 所有副本或重要部分中必须包含上述版权声明和本许可声明
+
+Copyright (c) 2025-present, ctkqiang
+
+如果您觉得本项目对您有帮助，欢迎请我喝杯咖啡 ☕️，您的支持是我持续维护和改进的动力！
+
+<p align="center">
+  <strong>微信扫码捐赠</strong><br/>
+  <img src="https://raw.gitcode.com/ctkqiang_sr/ctkqiang_sr/raw/main/mm_reward_qrcode_1778988737577.png" 
+       alt="微信扫码捐赠" 
+       width="240" 
+       style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" />
+</p>
