@@ -1,0 +1,219 @@
+# HunTianDB (混天DB)
+
+HunTianDB is a high-performance timeseries security database with full PostgreSQL Wire Protocol v3.0 compatibility. Built in Rust for speed, safety, and reliability. Designed for security audit trails, financial event streams, and real-time observability workloads.
+
+## Project Information
+
+- **Name:** HunTianDB (混天DB)
+- **Type:** Timeseries Security Database
+- **Language:** Rust
+- **License:** MIT
+- **Latest Version:** v0.1.7 (2026-05-20)
+- **Repository:** https://github.com/ctkqiang/HunTianDB
+- **Mirror (China):** https://gitcode.com/ctkqiang/HunTianDB
+- **Docker Hub:** ctkqiang/huntianandb
+- **Alibaba Cloud Registry:** crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb
+
+## Key Features
+
+- **PostgreSQL Wire Protocol v3.0:** Zero-friction compatibility with psql, DBeaver, pgAdmin, JDBC, psycopg2, and any standard PostgreSQL client. No migration cost.
+- **Async Lock-Free WAL:** Write path uses crossbeam channels with a background writer thread. Client returns instantly; WAL is persisted asynchronously with zstd-compressed bincode format (5x smaller than JSON).
+- **Crash-Safe Design:** CRC32 WAL checksums, LSN checkpoint recovery, and synchronous commit modes ensure zero data loss even on kill -9.
+- **Vectorized Aggregation:** Columnar cache with contiguous f64 slices. COUNT(*) in 0.07ms on 100K rows — 500x faster than PostgreSQL 16.
+- **SCRAM-SHA-256 Authentication:** Production-grade password verification with salted hashes. Built-in admin, writer, and reader roles.
+- **Docker Single Binary:** One image, three ports — PG wire (5408), REST API + Web Portal (3000), Prometheus metrics (5490).
+- **Prometheus Observability:** Built-in metrics endpoint with histograms, gauges, and counters for WAL latency, memory usage, query duration, and more.
+- **Multi-Language Support:** Client examples in Python, Go, Java/JDBC, Node.js, Rust, C/libpq, Erlang, Haskell, PHP, Ruby, and psql.
+
+## Benchmarks
+
+100,000 rows, Single Node, Apple Silicon macOS, psycopg2 PG Wire Protocol:
+
+| Metric | HunTianDB | PostgreSQL 16 | QuestDB 7.x |
+|---|---|---|---|
+| INSERT (batch=5000) | 68,741 r/s | 38,000 r/s | 280,000 r/s |
+| Point Lookup p50 | 0.58ms | 1.2ms | 0.2ms |
+| COUNT(*) 100K rows | 0.07ms | 35ms | 3.5ms |
+| DDL CREATE TABLE | 4.0ms | 12ms | 8.0ms |
+| WAL per row | 109 bytes | — | — |
+
+## SQL Support
+
+- **DDL:** CREATE TABLE, DROP TABLE, DESCRIBE
+- **DML:** INSERT INTO, SELECT (WHERE, LIMIT, ORDER BY)
+- **Aggregation:** COUNT, SUM, AVG, MIN, MAX, GROUP BY
+- **Metadata:** SHOW TABLES, SHOW USERS, SHOW COLUMNS FROM
+- **User Management:** CREATE USER, DROP USER, INSERT INTO users
+
+## Architecture
+
+```
+Frontend (React + TDesign + Monaco Editor) :3000
+    |
+REST API (Axum) + PG Wire Protocol (tokio) :5408
+    \                    /
+   Database Engine (In-Memory + Async WAL)
+              |
+    data/recovery.log (zstd-compressed bincode)
+```
+
+## Use Cases
+
+- Security audit trails and event monitoring
+- Financial event streams and trade logging
+- Real-time observability and metrics storage
+- IoT sensor data ingestion with timestamp indexing
+- Application log aggregation with SQL query interface
+- DevOps monitoring dashboards (Grafana-compatible via PG wire)
+
+## Quick Start
+
+```bash
+# Docker
+docker pull ctkqiang/huntianandb:v0.1.7
+docker run -d -p 5408:5408 -p 3000:3000 -p 5490:5490 -v huntian_data:/app/data ctkqiang/huntianandb:v0.1.7
+
+# Connect
+psql -h localhost -p 5408 -U admin -d huntiandb
+```
+
+Default credentials: admin / admin123
+
+## Ports
+
+| Port | Protocol | Purpose |
+|---|---|---|
+| 5408 | PostgreSQL Wire Protocol v3.0 | Database connections (psql, DBeaver, JDBC, psycopg2) |
+| 3000 | HTTP | REST API + Web Portal (dashboard, SQL query builder) |
+| 5490 | HTTP | Prometheus /metrics + /health + /ready |
+
+## Documentation
+
+- English README: https://github.com/ctkqiang/HunTianDB/blob/main/README_EN.md
+- User Management (EN): https://github.com/ctkqiang/HunTianDB/blob/main/docs/en/USER_MANAGEMENT.md
+- User Management (ZH): https://github.com/ctkqiang/HunTianDB/blob/main/docs/zh/USER_MANAGEMENT.md
+- Architecture (ZH): https://github.com/ctkqiang/HunTianDB/blob/main/docs/zh/ARCHITECTURE.md
+- Security (ZH): https://github.com/ctkqiang/HunTianDB/blob/main/docs/zh/SECURITY.md
+- Examples: https://github.com/ctkqiang/HunTianDB/tree/main/examples
+
+## SEO Keywords
+
+timeseries database, security database, PostgreSQL wire protocol, Rust database, WAL persistence, vectorized aggregation, Prometheus metrics, Docker database, time-series DB, event store, audit log database, psql compatible, DBeaver compatible, high-performance database, open source database, embedded database, financial time series, security information and event management, SIEM database, observability database
+
+## Social & Community
+
+- GitHub: https://github.com/ctkqiang/HunTianDB
+- GitCode (China): https://gitcode.com/ctkqiang/HunTianDB
+- Author: ctkqiang
+- License: MIT
+
+
+# 混天DB (HunTianDB)
+
+混天DB（HunTianDB）是一款高性能时序安全数据库，完整兼容 PostgreSQL Wire Protocol v3.0。采用 Rust 语言打造，追求极致的速度、安全与可靠性。专为安全审计追踪、金融事件流和实时可观测性场景而设计。
+
+## 项目信息
+
+- **名称：** 混天DB (HunTianDB)
+- **类型：** 时序安全数据库
+- **开发语言：** Rust
+- **许可证：** MIT
+- **最新版本：** v0.1.7（2026-05-20）
+- **代码仓库（国际）：** https://github.com/ctkqiang/HunTianDB
+- **代码仓库（中国）：** https://gitcode.com/ctkqiang/HunTianDB
+- **Docker Hub：** ctkqiang/huntianandb
+- **阿里云容器镜像：** crpi-onofuhwrkmb5z0mn.cn-hangzhou.personal.cr.aliyuncs.com/nezhawanluoanquan/huntiandb
+
+## 核心特性
+
+- **PostgreSQL Wire Protocol v3.0：** 原生 PG 线协议。无缝兼容 psql、DBeaver、pgAdmin、JDBC、psycopg2 及所有标准 PostgreSQL 客户端，零迁移成本。
+- **异步无锁 WAL：** 写入路径基于 crossbeam 无锁通道，客户端即刻返回，后台线程异步处理 zstd 压缩与磁盘同步。Bincode 格式比 JSON 小 5 倍。
+- **崩溃安全设计：** CRC32 WAL 校验和、LSN 检查点恢复、同步提交模式。即使 kill -9 强制终止，重启后数据零丢失。
+- **向量化聚合：** 列式缓存配合连续 f64 切片，直接迭代。10 万行 COUNT(*) 仅需 0.07ms，比 PostgreSQL 16 快 500 倍。
+- **SCRAM-SHA-256 认证：** 生产级密码验证，加盐哈希存储。内置管理员（admin）、写入者（writer）、只读（reader）三种角色。
+- **Docker 单镜像部署：** 一个镜像，三个端口。PG 线协议（5408）、REST API + Web Portal（3000）、Prometheus 指标（5490），一键拉取即用。
+- **Prometheus 可观测性：** 内置指标端点，提供直方图、仪表、计数器，覆盖 WAL 延迟、内存占用、查询耗时等关键指标。
+- **多语言客户端：** 提供 Python、Go、Java/JDBC、Node.js、Rust、C/libpq、Erlang、Haskell、PHP、Ruby、psql 共 11 种语言的连接示例。
+
+## 性能基准
+
+100,000 行数据，单节点，Apple Silicon macOS，psycopg2 PG Wire 协议：
+
+| 指标 | 混天DB | PostgreSQL 16 | QuestDB 7.x |
+|---|---|---|---|
+| INSERT (batch=5000) | 68,741 r/s | 38,000 r/s | 280,000 r/s |
+| 点查询延迟 p50 | 0.58ms | 1.2ms | 0.2ms |
+| COUNT(*) 10 万行 | 0.07ms | 35ms | 3.5ms |
+| DDL CREATE TABLE | 4.0ms | 12ms | 8.0ms |
+| WAL 每条记录 | 109 字节 | — | — |
+
+## SQL 支持
+
+- **DDL：** CREATE TABLE、DROP TABLE、DESCRIBE
+- **DML：** INSERT INTO、SELECT（支持 WHERE、LIMIT、ORDER BY）
+- **聚合函数：** COUNT、SUM、AVG、MIN、MAX、GROUP BY
+- **元数据：** SHOW TABLES、SHOW USERS、SHOW COLUMNS FROM
+- **用户管理：** CREATE USER、DROP USER、INSERT INTO users
+
+## 系统架构
+
+```
+前端 (React + TDesign + Monaco 编辑器) :3000
+    |
+REST API (Axum) + PG Wire 协议 (tokio) :5408
+    \                    /
+   数据库引擎 (内存 + 异步 WAL 持久化)
+              |
+    data/recovery.log (zstd 压缩 bincode)
+```
+
+## 适用场景
+
+- 安全审计追踪与事件监控
+- 金融事件流与交易日志存储
+- 实时可观测性与指标存储
+- IoT 传感器数据采集与时序索引
+- 应用日志聚合与 SQL 查询分析
+- DevOps 监控仪表板（通过 PG 线协议兼容 Grafana）
+
+## 快速开始
+
+```bash
+# Docker 部署
+docker pull ctkqiang/huntianandb:v0.1.7
+docker run -d -p 5408:5408 -p 3000:3000 -p 5490:5490 -v huntian_data:/app/data ctkqiang/huntianandb:v0.1.7
+
+# 连接数据库
+psql -h localhost -p 5408 -U admin -d huntiandb
+```
+
+默认账号：admin / admin123
+
+## 端口说明
+
+| 端口 | 协议 | 用途 |
+|---|---|---|
+| 5408 | PostgreSQL Wire Protocol v3.0 | 数据库连接（psql、DBeaver、JDBC、psycopg2） |
+| 3000 | HTTP | REST API + Web Portal（仪表板、SQL 查询构建器） |
+| 5490 | HTTP | Prometheus /metrics + /health + /ready |
+
+## 文档
+
+- 中文 README：https://github.com/ctkqiang/HunTianDB/blob/main/README.md
+- 英文 README：https://github.com/ctkqiang/HunTianDB/blob/main/README_EN.md
+- 用户管理（中文）：https://github.com/ctkqiang/HunTianDB/blob/main/docs/zh/USER_MANAGEMENT.md
+- 用户管理（英文）：https://github.com/ctkqiang/HunTianDB/blob/main/docs/en/USER_MANAGEMENT.md
+- 架构说明（中文）：https://github.com/ctkqiang/HunTianDB/blob/main/docs/zh/ARCHITECTURE.md
+- 安全说明（中文）：https://github.com/ctkqiang/HunTianDB/blob/main/docs/zh/SECURITY.md
+- 示例代码：https://github.com/ctkqiang/HunTianDB/tree/main/examples
+
+## SEO 关键词
+
+时序数据库, 安全数据库, PostgreSQL 兼容, Rust 数据库, WAL 持久化, 向量化聚合, Prometheus 指标, Docker 数据库, 时序安全, 事件存储, 审计日志数据库, psql 兼容, DBeaver 兼容, 高性能数据库, 开源数据库, 嵌入式数据库, 金融时序, 安全信息与事件管理, SIEM 数据库, 可观测性数据库, 混天DB, 混天数据库
+
+## 社区与支持
+
+- GitHub：https://github.com/ctkqiang/HunTianDB
+- GitCode（中国）：https://gitcode.com/ctkqiang/HunTianDB
+- 作者：ctkqiang
+- 许可证：MIT
