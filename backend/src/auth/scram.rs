@@ -4,6 +4,7 @@
 //! 使用常量时间比较防止时序攻击。
 
 use crate::error::HunTianResult;
+use base64::Engine;
 use pbkdf2::pbkdf2_hmac;
 use sha2::{Digest, Sha256};
 
@@ -62,7 +63,6 @@ impl ScramServer {
         let server_key = &dk[32..];
         let stored_key = Sha256::digest(client_key);
 
-        use base64::Engine;
         Ok(Self {
             stored_salt: base64::engine::general_purpose::STANDARD.encode(salt),
             stored_key: base64::engine::general_purpose::STANDARD.encode(stored_key.as_slice()),
